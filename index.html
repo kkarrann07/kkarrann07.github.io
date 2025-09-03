@@ -1,34 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>ChechIT - AI Fashion Search & AR Try-On</title>
+  <meta charset="UTF-8" />
+  <title>ChechIT – AI Fashion Search + AR Try-On</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f7f7f7;
+      background: #f8f9fa;
       margin: 0;
       padding: 0;
       text-align: center;
     }
     header {
-      background: #222;
-      color: #fff;
+      background: #343a40;
+      color: white;
       padding: 1rem;
-      font-size: 1.4rem;
+      font-size: 1.5rem;
       font-weight: bold;
     }
     section {
       padding: 2rem;
     }
     iframe {
+      width: 100%;
+      max-width: 1000px;
+      height: 650px;
       border: none;
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
     canvas, video {
+      max-width: 100%;
       border-radius: 12px;
-      max-width: 90%;
       margin-top: 1rem;
     }
   </style>
@@ -38,24 +42,20 @@
     👗 ChechIT – AI Fashion Search + AR Try-On
   </header>
 
-  <!-- Hugging Face Fashion Search -->
   <section>
     <h2>🔍 AI Fashion Search</h2>
-    <p>Use our Hugging Face-powered model to search clothing with AI embeddings.</p>
-    <iframe src="https://kkarrann07-Fashion.hf.space" 
-            width="100%" height="650">
-    </iframe>
+    <p>Upload a fashion image to find similar styles using CLIP + Annoy + Hugging Face Spaces.</p>
+    <iframe src="https://kkarrann07-Fashion.hf.space"></iframe>
   </section>
 
-  <!-- AR Try-On Demo -->
   <section>
     <h2>🕶️ AR Clothing Try-On (Demo)</h2>
-    <p>Turn on your camera and see a jacket overlay using MediaPipe Pose.</p>
+    <p>Start camera to see a jacket overlay using AI pose detection (MediaPipe).</p>
     <video id="video" autoplay playsinline width="640" height="480"></video>
     <canvas id="output" width="640" height="480"></canvas>
   </section>
 
-  <!-- Scripts for AR Try-On -->
+  <!-- MediaPipe + Pose tracking -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
   <script>
@@ -63,15 +63,21 @@
     const canvasElement = document.getElementById('output');
     const ctx = canvasElement.getContext('2d');
 
-    // Sample transparent jacket image
+    // Load a sample transparent jacket
     const jacket = new Image();
+    jacket.crossOrigin = "anonymous";
     jacket.src = "https://raw.githubusercontent.com/google/mediapipe/main/docs/images/jacket.png";
 
     const pose = new Pose({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
     });
 
-    pose.setOptions({modelComplexity: 1, smoothLandmarks: true});
+    pose.setOptions({
+      modelComplexity: 1,
+      smoothLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
 
     pose.onResults((results) => {
       ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -80,19 +86,21 @@
       if (results.poseLandmarks) {
         const leftShoulder = results.poseLandmarks[11];
         const rightShoulder = results.poseLandmarks[12];
-
         const width = Math.abs(rightShoulder.x - leftShoulder.x) * canvasElement.width * 2;
         const x = leftShoulder.x * canvasElement.width - width / 4;
         const y = leftShoulder.y * canvasElement.height - width / 2;
-
         ctx.drawImage(jacket, x, y, width, width * 1.2);
       }
     });
 
     const camera = new Camera(videoElement, {
-      onFrame: async () => { await pose.send({image: videoElement}); },
-      width: 640, height: 480
+      onFrame: async () => {
+        await pose.send({ image: videoElement });
+      },
+      width: 640,
+      height: 480
     });
+
     camera.start();
   </script>
 </body>
