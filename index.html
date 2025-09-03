@@ -1,0 +1,160 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ChechIT — AI Fashion Search + AR Try-On</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body{padding:1rem}
+    .camera-wrap{position:relative;max-width:640px}
+    canvas{width:100%;height:auto;background:#000}
+    .thumb{width:120px;height:160px;object-fit:contain;margin:6px;border:2px solid transparent;cursor:pointer}
+    .thumb.selected{border-color:#0d6efd}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h3>ChechIT — AI Fashion Search + AR Try-On</h3>
+    <div class="row">
+      <div class="col-md-6">
+        <input id="queryFile" type="file" accept="image/*" class="form-control mb-2"/>
+        <button id="searchBtn" class="btn btn-primary mb-2">Search</button>
+        <div id="results"></div>
+      </div>
+      <div class="col-md-6">
+        <h6>Try-On Camera</h6>
+        <div class="camera-wrap">
+          <video id="video" autoplay playsinline style="display:none"></video>
+          <canvas id="outputCanvas" width="640" height="480"></canvas>
+        </div>
+        <div class="mt-2">
+          <button id="startCam" class="btn btn-sm btn-success">Start Camera</button>
+          <button id="stopCam" class="btn btn-sm btn-secondary">Stop Camera</button>
+        </div>
+        <p>Selected: <span id="selName">None</span></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
+
+<script>
+  // Backend Space API endpoint (from Hugging Face API panel)
+  const BACKEND_URL = "https://hf.space/embed/kkarrann07/Fashion/+/api/predict/";
+
+  // Raw base for dataset images
+  const HF_RAW_BASE = "https://huggingface.co/spaces/kkarrann07/Fashion/resolve/main/";
+
+  // elements
+  const queryFileEl = document.getElementById('queryFile');
+  const resultsEl = document.getElementById('results');
+  const selNameEl = document.getElementById('selName');
+
+  // Search button handler
+  document.getElementById('searchBtn').onclick = async () => {
+    if (!queryFileEl.files.length) { alert("Choose a query image"); return; }
+    const file = queryFileEl.files[0];
+    const form = new FormData();
+    form.append("data", file); // key "data" is what Gradio expects
+
+    try {
+      const res = await fetch(BACKEND_URL, { method: "POST", body: form });
+      const j = await res.json();
+      console.log("Backend response:", j);
+
+      let candidates = [];
+      if (j?.data && Array.isArray(j.data[0])) {
+        candidates = j.data[0];
+      } else if (Array.isArray(j.data)) {
+        candidates = j.data;
+      }
+
+      resultsEl.innerHTML = "";
+      if (candidates.length === 0) {
+        resultsEl.innerHTML = "<div class='alert alert-warning'>No results returned.</div>";
+        return;
+      }
+
+      candidates.forEach((c, i) => {
+        let url = (typeof c === "string") ? c : (c.full_url || c.path || c.url || "");
+        if (url && !url.startsWith("http")) url = HF_RAW_BASE + url;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'd-flex align-items-center mb-2';
+        wrapper.innerHTML = `
+          <img src="${url}" class="thumb" id="thumb_${i}" />
+          <div style="margin-left:8px">
+            <div>${(typeof c==="object" && c.name) ? c.name : "item " + (i+1)}</div>
+            <div style="margin-top:6px">
+              <button class="btn btn-sm btn-primary" onclick="startTryOn('${url}', '${(typeof c==='object' && c.name)?c.name:''}')">Try On</button>
+            </div>
+          </div>
+        `;
+        resultsEl.appendChild(wrapper);
+      });
+    } catch (e) {
+      console.error(e);
+      resultsEl.innerHTML = "<div class='alert alert-danger'>Error contacting backend.</div>";
+    }
+  };
+
+  // ---------- Try-on ----------
+  let selectedOverlay = null;
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('outputCanvas');
+  const ctx = canvas.getContext('2d');
+  let cameraController = null;
+  const pose = new Pose.Pose({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}` });
+  pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+  pose.onResults(onResults);
+
+  function onResults(results) {
+    if (!results || !results.image) return;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+    if (selectedOverlay && results.poseLandmarks) {
+      const left = results.poseLandmarks[11];
+      const right = results.poseLandmarks[12];
+      const cx = ((left.x + right.x)/2) * canvas.width;
+      const shoulderDist = Math.abs(right.x - left.x) * canvas.width;
+      const w = shoulderDist * 2.2;
+      const h = w * 1.3;
+      const x = cx - w/2;
+      const y = (left.y * canvas.height) - (h * 0.1);
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = selectedOverlay;
+      img.onload = () => ctx.drawImage(img, x, y, w, h);
+    }
+  }
+
+  async function startTryOn(url, name) {
+    selectedOverlay = url;
+    selNameEl.textContent = name || "Selected";
+    if (cameraController) return;
+    video.style.display = 'block';
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    video.srcObject = stream;
+    await video.play();
+    cameraController = new Camera.Camera(video, {
+      onFrame: async () => { await pose.send({ image: video }); },
+      width: 640, height: 480
+    });
+    cameraController.start();
+  }
+
+  document.getElementById('startCam').onclick = () => {
+    if (!cameraController) startTryOn(selectedOverlay || "");
+  };
+  document.getElementById('stopCam').onclick = () => {
+    if (video.srcObject) {
+      video.srcObject.getTracks().forEach(t => t.stop());
+      video.srcObject = null;
+    }
+    if (cameraController) cameraController.stop();
+    cameraController = null;
+  };
+</script>
+</body>
+</html>
