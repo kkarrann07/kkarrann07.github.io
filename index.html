@@ -1,232 +1,47 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>ChechIT - AI Fashion Try-On</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f7f7f7;
-      margin: 0;
-      padding: 0;
-      text-align: center;
-    }
-    header {
-      background: #222;
-      color: #fff;
-      padding: 1rem;
-      font-size: 1.4rem;
-      font-weight: bold;
-    }
-    section {
-      padding: 2rem;
-    }
-    iframe {
-      border: none;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    }
-    .ar-container {
-      position: relative;
-      width: 640px;
-      height: 480px;
-      margin: auto;
-    }
-    video {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 640px;
-      height: 480px;
-      border-radius: 12px;
-      /* NO mirror */
-      z-index: 1;
-    }
-    canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 640px;
-      height: 480px;
-      border-radius: 12px;
-      z-index: 2; /* on top */
-      /* NO mirroring on canvas */
-    }
-    input[type="file"] {
-      margin-top: 10px;
-    }
-    .static-shirt {
-      margin-top: 1rem;
-      perspective: 800px;
-      width: 320px;
-      margin-left: auto;
-      margin-right: auto;
-      user-select: none;
-    }
-    .rotator {
-      width: 100%;
-      height: 400px;
-      border-radius: 12px;
-      border: 1px solid #ccc;
-      overflow: hidden;
-      background: #fff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      cursor: grab;
-      transition: transform 0.1s ease-out;
-    }
-    .rotator img {
-      max-width: 100%;
-      max-height: 100%;
-      pointer-events: none;
-      user-select: none;
-      border-radius: 12px;
-      backface-visibility: hidden;
-      transform-style: preserve-3d;
-    }
-    .rotator:active {
-      cursor: grabbing;
-    }
-  </style>
-</head>
-<body>
-  <header>👗 ChechIT – AI Fashion Try-On</header>
+pose.onResults((results) => {
+  ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-  <!-- AI Search -->
-  <section>
-    <h2>🔍 AI Fashion Search</h2>
-    <p>Use our Hugging Face-powered model to search clothing with AI embeddings.</p>
-    <iframe src="https://kkarrann07-Fashion.hf.space" width="100%" height="650"></iframe>
-  </section>
+  // Draw mirrored video frame
+  // Because video element is mirrored via CSS, results.image is not mirrored
+  // So we need to mirror the image on canvas too to match video.
+  ctx.save();
+  ctx.scale(-1, 1); // flip horizontally
+  ctx.drawImage(results.image, -canvasElement.width, 0, canvasElement.width, canvasElement.height);
+  ctx.restore();
 
-  <!-- Upload -->
-  <section>
-    <h2>🖼️ Upload Your Clothing Image</h2>
-    <p>Choose a shirt/top image (preferably transparent PNG).</p>
-    <input type="file" id="upload" accept="image/*" />
-    <div class="static-shirt" aria-label="Static Shirt Viewer">
-      <p>🖼️ Preview (3D Rotator):</p>
-      <div class="rotator" id="rotator">
-        <img id="staticPreview" src="" alt="Uploaded shirt preview" />
-      </div>
-    </div>
-  </section>
+  if (results.poseLandmarks && shirtLoaded) {
+    const lm = results.poseLandmarks;
+    const w = canvasElement.width;
+    const h = canvasElement.height;
 
-  <!-- AR Try-On -->
-  <section>
-    <h2>🕶️ AR Clothing Try-On</h2>
-    <p>Turn on your camera. Your uploaded shirt will overlay your body in real time.</p>
-    <div class="ar-container">
-      <video id="video" autoplay playsinline></video>
-      <canvas id="output" width="640" height="480"></canvas>
-    </div>
-  </section>
+    // Flip pose landmarks horizontally to match mirrored video
+    // Create flipped landmarks array
+    const flippedLm = lm.map((point) => ({
+      x: 1 - point.x,
+      y: point.y,
+      z: point.z,
+      visibility: point.visibility,
+    }));
 
-  <!-- MediaPipe Libraries -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
+    const leftShoulder = flippedLm[11];
+    const rightShoulder = flippedLm[12];
+    const leftHip = flippedLm[23];
+    const rightHip = flippedLm[24];
 
-  <script>
-    const videoElement = document.getElementById('video');
-    const canvasElement = document.getElementById('output');
-    const ctx = canvasElement.getContext('2d');
+    const shoulderCenterX = ((leftShoulder.x + rightShoulder.x) / 2) * w;
+    const shoulderCenterY = ((leftShoulder.y + rightShoulder.y) / 2) * h;
 
-    const staticPreview = document.getElementById('staticPreview');
-    const rotator = document.getElementById('rotator');
+    const hipCenterY = ((leftHip.y + rightHip.y) / 2) * h;
+    const torsoHeight = hipCenterY - shoulderCenterY;
 
-    let shirt = new Image();
-    let shirtLoaded = false;
+    const shoulderWidth = Math.abs(rightShoulder.x - leftShoulder.x) * w;
 
-    // Variables for rotator 3D effect
-    let rotationY = 0;
-    let isDragging = false;
-    let startX = 0;
+    const shirtWidth = shoulderWidth * 1.6;
+    const shirtHeight = torsoHeight * 2.1;
 
-    // Handle image upload & resize
-    document.getElementById('upload').addEventListener('change', (event) => {
-      const file = event.target.files[0];
-      if (!file) return;
+    const shirtX = shoulderCenterX - shirtWidth / 2;
+    const shirtY = shoulderCenterY + torsoHeight * 0.05;
 
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const uploadedImage = new Image();
-        uploadedImage.onload = () => {
-          // Resize image if too big
-          const maxSize = 512;
-          const ratio = Math.min(maxSize / uploadedImage.width, maxSize / uploadedImage.height, 1);
-          const offCanvas = document.createElement('canvas');
-          offCanvas.width = uploadedImage.width * ratio;
-          offCanvas.height = uploadedImage.height * ratio;
-          const offCtx = offCanvas.getContext('2d');
-          offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
-          offCtx.drawImage(uploadedImage, 0, 0, offCanvas.width, offCanvas.height);
-          shirt.src = offCanvas.toDataURL("image/png");
-          staticPreview.src = shirt.src; // Show static preview
-        };
-        uploadedImage.onerror = () => {
-          shirtLoaded = false;
-          alert("Could not load image. Please try a transparent PNG.");
-        };
-        uploadedImage.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
-
-    shirt.onload = () => {
-      shirtLoaded = true;
-    };
-
-    // MediaPipe Pose setup
-    const pose = new Pose({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`,
-    });
-
-    pose.setOptions({
-      modelComplexity: 1,
-      smoothLandmarks: true,
-      enableSegmentation: false,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5,
-    });
-
-    pose.onResults((results) => {
-      ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-
-      // Draw video frame (NO mirroring on video now)
-      ctx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-
-      if (results.poseLandmarks && shirtLoaded) {
-        const lm = results.poseLandmarks;
-        const w = canvasElement.width;
-        const h = canvasElement.height;
-
-        // Get landmarks (shoulders, hips)
-        const leftShoulder = lm[11];
-        const rightShoulder = lm[12];
-        const leftHip = lm[23];
-        const rightHip = lm[24];
-
-        const shoulderCenterX = ((leftShoulder.x + rightShoulder.x) / 2) * w;
-        const shoulderCenterY = ((leftShoulder.y + rightShoulder.y) / 2) * h;
-
-        const hipCenterY = ((leftHip.y + rightHip.y) / 2) * h;
-        const torsoHeight = hipCenterY - shoulderCenterY;
-
-        const shoulderWidth = Math.abs(rightShoulder.x - leftShoulder.x) * w;
-
-        // Shirt size scaling (adjust to fit nicely)
-        const shirtWidth = shoulderWidth * 1.6;
-        const shirtHeight = torsoHeight * 2.1;
-
-        // Position shirt so shoulders align:
-        // x: center shirt on shoulderCenterX
-        // y: place shirt top slightly below shoulder line (to cover torso)
-        const shirtX = shoulderCenterX - shirtWidth / 2;
-        const shirtY = shoulderCenterY + torsoHeight * 0.05;
-
-        // Optional: Flip shirt horizontally so it faces user correctly (depends on your image)
-        // ctx.save();
-        // ctx.translate(shirtX + shirtWidth / 2, 0);
-        // ctx.scale(-1, 1);
-        // ctx.draw
+    ctx.drawImage(shirt, shirtX, shirtY, shirtWidth, shirtHeight);
+  }
+});
