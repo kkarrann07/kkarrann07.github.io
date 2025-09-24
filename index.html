@@ -39,7 +39,7 @@
       width: 640px;
       height: 480px;
       border-radius: 12px;
-      transform: scaleX(-1); /* mirror flip */
+      transform: scaleX(-1); /* mirror */
     }
     input[type="file"] {
       margin-top: 10px;
@@ -68,7 +68,7 @@
   <!-- AR Try-On -->
   <section>
     <h2>🕶️ AR Clothing Try-On</h2>
-    <p>Turn on your camera. Once you upload a shirt image, it will overlay your body.</p>
+    <p>Turn on your camera. Once you upload a shirt image, it will overlay your body in real time.</p>
     <div class="ar-container">
       <video id="video" autoplay playsinline></video>
       <canvas id="output" width="640" height="480"></canvas>
@@ -87,27 +87,24 @@
     let shirt = new Image();
     let shirtLoaded = false;
 
-    // Upload + Resize image before using
+    // Resize uploaded image before using it
     document.getElementById('upload').addEventListener('change', (event) => {
       const file = event.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
-
       reader.onload = function (e) {
         const uploadedImage = new Image();
         uploadedImage.onload = () => {
-          const offCanvas = document.createElement('canvas');
+          // Resize image to prevent performance issues
           const maxSize = 512;
           const ratio = Math.min(maxSize / uploadedImage.width, maxSize / uploadedImage.height);
+          const offCanvas = document.createElement('canvas');
           offCanvas.width = uploadedImage.width * ratio;
           offCanvas.height = uploadedImage.height * ratio;
-
           const offCtx = offCanvas.getContext('2d');
           offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
           offCtx.drawImage(uploadedImage, 0, 0, offCanvas.width, offCanvas.height);
-
-          // Use resized version
           shirt.src = offCanvas.toDataURL("image/png");
         };
         uploadedImage.onerror = () => {
@@ -116,7 +113,6 @@
         };
         uploadedImage.src = e.target.result;
       };
-
       reader.readAsDataURL(file);
     });
 
@@ -132,18 +128,16 @@
     pose.setOptions({
       modelComplexity: 1,
       smoothLandmarks: true,
+      enableSegmentation: false,
       minDetectionConfidence: 0.5,
       minTrackingConfidence: 0.5
     });
 
-    pose.onResults(results => {
+    pose.onResults((results) => {
       ctx.save();
       ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-
-      // Flip canvas to match mirrored camera
-      ctx.scale(-1, 1);
+      ctx.scale(-1, 1);  // Mirror horizontally
       ctx.translate(-canvasElement.width, 0);
-
       ctx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
       if (results.poseLandmarks && shirtLoaded) {
@@ -156,20 +150,22 @@
         const leftHip = lm[23];
         const rightHip = lm[24];
 
-        const torsoWidth = Math.abs(rightShoulder.x - leftShoulder.x) * w;
         const shoulderCenterX = ((leftShoulder.x + rightShoulder.x) / 2) * w;
         const shoulderCenterY = ((leftShoulder.y + rightShoulder.y) / 2) * h;
         const hipCenterY = ((leftHip.y + rightHip.y) / 2) * h;
+
+        const torsoWidth = Math.abs(rightShoulder.x - leftShoulder.x) * w;
         const torsoHeight = Math.abs(hipCenterY - shoulderCenterY);
 
-        const widthScale = 1.5;
-        const heightScale = 2.2;
-
+        // Scale shirt to match torso
+        const widthScale = 1.6;
+        const heightScale = 2.4;
         const finalWidth = torsoWidth * widthScale;
         const finalHeight = torsoHeight * heightScale;
 
-        const x = shoulderCenterX - (finalWidth / 2);
-        const y = shoulderCenterY - (torsoHeight * 0.2);
+        // Position shirt over chest/shoulders
+        const x = shoulderCenterX - finalWidth / 2;
+        const y = shoulderCenterY - finalHeight * 0.35; // Lift up shirt
 
         ctx.drawImage(shirt, x, y, finalWidth, finalHeight);
       }
@@ -177,7 +173,7 @@
       ctx.restore();
     });
 
-    // Start webcam
+    // Start camera
     const camera = new Camera(videoElement, {
       onFrame: async () => {
         await pose.send({ image: videoElement });
