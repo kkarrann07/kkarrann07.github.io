@@ -39,6 +39,7 @@
       width: 640px;
       height: 480px;
       border-radius: 12px;
+      /* Mirror video feed horizontally for natural selfie view */
       transform: scaleX(-1);
     }
     input[type="file"] {
@@ -99,7 +100,7 @@
     let shirt = new Image();
     let shirtLoaded = false;
 
-    // Upload & resize image
+    // Handle image upload & resize
     document.getElementById('upload').addEventListener('change', (event) => {
       const file = event.target.files[0];
       if (!file) return;
@@ -117,11 +118,11 @@
           offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
           offCtx.drawImage(uploadedImage, 0, 0, offCanvas.width, offCanvas.height);
           shirt.src = offCanvas.toDataURL("image/png");
-          staticPreview.src = shirt.src; // show in catalog
+          staticPreview.src = shirt.src; // Show static preview
         };
         uploadedImage.onerror = () => {
           shirtLoaded = false;
-          alert("Could not load image. Try a different PNG.");
+          alert("Could not load image. Please try a transparent PNG.");
         };
         uploadedImage.src = e.target.result;
       };
@@ -132,7 +133,7 @@
       shirtLoaded = true;
     };
 
-    // Setup MediaPipe
+    // MediaPipe Pose setup
     const pose = new Pose({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`,
     });
@@ -146,10 +147,9 @@
     });
 
     pose.onResults((results) => {
-      ctx.save();
       ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-      ctx.scale(-1, 1);
-      ctx.translate(-canvasElement.width, 0);
+
+      // Draw the video frame (already mirrored by CSS)
       ctx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
       if (results.poseLandmarks && shirtLoaded) {
@@ -157,34 +157,38 @@
         const w = canvasElement.width;
         const h = canvasElement.height;
 
+        // Key landmarks
         const leftShoulder = lm[11];
         const rightShoulder = lm[12];
         const leftHip = lm[23];
         const rightHip = lm[24];
 
+        // Calculate shoulder center in pixels
         const shoulderCenterX = ((leftShoulder.x + rightShoulder.x) / 2) * w;
         const shoulderCenterY = ((leftShoulder.y + rightShoulder.y) / 2) * h;
+
+        // Calculate torso height (distance shoulder center to hip center)
         const hipCenterY = ((leftHip.y + rightHip.y) / 2) * h;
+        const torsoHeight = hipCenterY - shoulderCenterY;
 
-        const torsoWidth = Math.abs(rightShoulder.x - leftShoulder.x) * w;
-        const torsoHeight = Math.abs(hipCenterY - shoulderCenterY);
+        // Width between shoulders
+        const shoulderWidth = Math.abs(rightShoulder.x - leftShoulder.x) * w;
 
-        const widthScale = 1.7;
-        const heightScale = 2.3;
+        // Scale factors to fit the shirt nicely
+        const shirtWidth = shoulderWidth * 1.6;
+        const shirtHeight = torsoHeight * 2.2;
 
-        const finalWidth = torsoWidth * widthScale;
-        const finalHeight = torsoHeight * heightScale;
+        // Position shirt so shoulders align:
+        // x: center shirt on shoulderCenterX
+        // y: place shirt so top of shirt aligns a bit above shoulder center Y
+        const shirtX = shoulderCenterX - shirtWidth / 2;
+        const shirtY = shoulderCenterY - shirtHeight * 0.35;
 
-        const x = shoulderCenterX - finalWidth / 2;
-        const y = shoulderCenterY - finalHeight * 0.42; // lifted higher
-
-        ctx.drawImage(shirt, x, y, finalWidth, finalHeight);
+        ctx.drawImage(shirt, shirtX, shirtY, shirtWidth, shirtHeight);
       }
-
-      ctx.restore();
     });
 
-    // Start Camera
+    // Start the camera with MediaPipe Camera Utils
     const camera = new Camera(videoElement, {
       onFrame: async () => {
         await pose.send({ image: videoElement });
