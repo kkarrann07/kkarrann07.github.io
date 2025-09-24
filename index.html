@@ -1,39 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>ChechIT – AI Fashion Search + AR Try-On</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <title>ChechIT - AI Fashion Search & AR Try-On</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f8f9fa;
+      background: #f7f7f7;
       margin: 0;
       padding: 0;
       text-align: center;
     }
     header {
-      background: #343a40;
-      color: white;
+      background: #222;
+      color: #fff;
       padding: 1rem;
-      font-size: 1.5rem;
+      font-size: 1.4rem;
       font-weight: bold;
     }
     section {
       padding: 2rem;
     }
     iframe {
-      width: 100%;
-      max-width: 1000px;
-      height: 650px;
       border: none;
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
+    .ar-container {
+      position: relative;
+      width: 640px;
+      height: 480px;
+      margin: auto;
+    }
     canvas, video {
-      max-width: 100%;
       border-radius: 12px;
-      margin-top: 1rem;
+      position: absolute;
+      top: 0;
+      left: 0;
     }
   </style>
 </head>
@@ -42,32 +45,37 @@
     👗 ChechIT – AI Fashion Search + AR Try-On
   </header>
 
+  <!-- Hugging Face Model Section -->
   <section>
     <h2>🔍 AI Fashion Search</h2>
-    <p>Upload a fashion image to find similar styles using CLIP + Annoy + Hugging Face Spaces.</p>
-    <iframe src="https://kkarrann07-Fashion.hf.space"></iframe>
+    <p>Use our Hugging Face-powered model to search clothing with AI embeddings.</p>
+    <iframe src="https://kkarrann07-Fashion.hf.space" width="100%" height="650"></iframe>
   </section>
 
+  <!-- AR Try-On Section -->
   <section>
     <h2>🕶️ AR Clothing Try-On (Demo)</h2>
-    <p>Start camera to see a jacket overlay using AI pose detection (MediaPipe).</p>
-    <video id="video" autoplay playsinline width="640" height="480"></video>
-    <canvas id="output" width="640" height="480"></canvas>
+    <p>Turn on your camera and see a shirt overlay using MediaPipe Pose.</p>
+    <div class="ar-container">
+      <video id="video" autoplay playsinline width="640" height="480"></video>
+      <canvas id="output" width="640" height="480"></canvas>
+    </div>
   </section>
 
-  <!-- MediaPipe + Pose tracking -->
+  <!-- MediaPipe Pose Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
+
   <script>
     const videoElement = document.getElementById('video');
     const canvasElement = document.getElementById('output');
     const ctx = canvasElement.getContext('2d');
 
-    // Load a sample transparent jacket
-    const jacket = new Image();
-    jacket.crossOrigin = "anonymous";
-    jacket.src = "https://raw.githubusercontent.com/google/mediapipe/main/docs/images/jacket.png";
+    // Shirt overlay image
+    const shirt = new Image();
+    shirt.src = "shirt.png"; // Make sure this file is uploaded in GitHub repo root
 
+    // Pose instance
     const pose = new Pose({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
     });
@@ -84,24 +92,49 @@
       ctx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
       if (results.poseLandmarks) {
-        const leftShoulder = results.poseLandmarks[11];
-        const rightShoulder = results.poseLandmarks[12];
-        const width = Math.abs(rightShoulder.x - leftShoulder.x) * canvasElement.width * 2;
-        const x = leftShoulder.x * canvasElement.width - width / 4;
-        const y = leftShoulder.y * canvasElement.height - width / 2;
-        ctx.drawImage(jacket, x, y, width, width * 1.2);
+        const landmarks = results.poseLandmarks;
+        const w = canvasElement.width;
+        const h = canvasElement.height;
+
+        const leftShoulder = landmarks[11];
+        const rightShoulder = landmarks[12];
+        const leftHip = landmarks[23];
+        const rightHip = landmarks[24];
+        
+        const torsoWidth = Math.abs(rightShoulder.x - leftShoulder.x) * w;
+        const shoulderCenterX = (leftShoulder.x + rightShoulder.x) / 2 * w;
+        const shoulderCenterY = (leftShoulder.y + rightShoulder.y) / 2 * h;
+        const hipCenterY = (leftHip.y + rightHip.y) / 2 * h;
+        const torsoHeight = Math.abs(hipCenterY - shoulderCenterY);
+
+        const widthScale = 1.5;
+        const heightScale = 2.2;
+
+        const finalWidth = torsoWidth * widthScale;
+        const finalHeight = torsoHeight * heightScale;
+        
+        const x = shoulderCenterX - (finalWidth / 2);
+        const y = shoulderCenterY - (torsoHeight * 0.2);
+
+        ctx.drawImage(shirt, x, y, finalWidth, finalHeight);
       }
     });
 
     const camera = new Camera(videoElement, {
-      onFrame: async () => {
-        await pose.send({ image: videoElement });
-      },
+      onFrame: async () => { await pose.send({image: videoElement}); },
       width: 640,
       height: 480
     });
 
-    camera.start();
+    shirt.onload = () => {
+      camera.start();
+    };
+
+    shirt.onerror = () => {
+      console.error("Error loading the shirt image. Check the filename and path.");
+      alert("Could not load the shirt image. Make sure 'shirt.png' is in your repository!");
+    };
   </script>
 </body>
 </html>
+
