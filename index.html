@@ -32,26 +32,63 @@
       height: 480px;
       margin: auto;
     }
-    video, canvas {
+    video {
       position: absolute;
       top: 0;
       left: 0;
       width: 640px;
       height: 480px;
       border-radius: 12px;
-      /* Mirror video feed horizontally for natural selfie view */
+      /* Mirror video for natural selfie */
       transform: scaleX(-1);
+      /* Keep video above canvas */
+      z-index: 1;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 640px;
+      height: 480px;
+      border-radius: 12px;
+      z-index: 2; /* on top */
+      /* NO mirroring on canvas */
     }
     input[type="file"] {
       margin-top: 10px;
     }
     .static-shirt {
       margin-top: 1rem;
+      perspective: 800px;
+      width: 320px;
+      margin-left: auto;
+      margin-right: auto;
+      user-select: none;
     }
-    .static-shirt img {
-      max-width: 300px;
+    .rotator {
+      width: 100%;
+      height: 400px;
       border-radius: 12px;
       border: 1px solid #ccc;
+      overflow: hidden;
+      background: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: grab;
+      transition: transform 0.1s ease-out;
+    }
+    .rotator img {
+      max-width: 100%;
+      max-height: 100%;
+      pointer-events: none;
+      user-select: none;
+      border-radius: 12px;
+      backface-visibility: hidden;
+      transform-style: preserve-3d;
+    }
+    .rotator:active {
+      cursor: grabbing;
     }
   </style>
 </head>
@@ -70,9 +107,11 @@
     <h2>🖼️ Upload Your Clothing Image</h2>
     <p>Choose a shirt/top image (preferably transparent PNG).</p>
     <input type="file" id="upload" accept="image/*" />
-    <div class="static-shirt">
-      <p>🖼️ Preview (Catalog Style):</p>
-      <img id="staticPreview" src="" alt="Uploaded shirt preview" />
+    <div class="static-shirt" aria-label="Static Shirt Viewer">
+      <p>🖼️ Preview (3D Rotator):</p>
+      <div class="rotator" id="rotator">
+        <img id="staticPreview" src="" alt="Uploaded shirt preview" />
+      </div>
     </div>
   </section>
 
@@ -96,9 +135,15 @@
     const ctx = canvasElement.getContext('2d');
 
     const staticPreview = document.getElementById('staticPreview');
+    const rotator = document.getElementById('rotator');
 
     let shirt = new Image();
     let shirtLoaded = false;
+
+    // Variables for rotator 3D effect
+    let rotationY = 0;
+    let isDragging = false;
+    let startX = 0;
 
     // Handle image upload & resize
     document.getElementById('upload').addEventListener('change', (event) => {
@@ -109,8 +154,9 @@
       reader.onload = function (e) {
         const uploadedImage = new Image();
         uploadedImage.onload = () => {
+          // Resize image if too big
           const maxSize = 512;
-          const ratio = Math.min(maxSize / uploadedImage.width, maxSize / uploadedImage.height);
+          const ratio = Math.min(maxSize / uploadedImage.width, maxSize / uploadedImage.height, 1);
           const offCanvas = document.createElement('canvas');
           offCanvas.width = uploadedImage.width * ratio;
           offCanvas.height = uploadedImage.height * ratio;
@@ -149,7 +195,7 @@
     pose.onResults((results) => {
       ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-      // Draw the video frame (already mirrored by CSS)
+      // Draw video frame (already mirrored by CSS on video)
       ctx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
       if (results.poseLandmarks && shirtLoaded) {
@@ -157,13 +203,13 @@
         const w = canvasElement.width;
         const h = canvasElement.height;
 
-        // Key landmarks
+        // Get shoulders and hips landmarks
         const leftShoulder = lm[11];
         const rightShoulder = lm[12];
         const leftHip = lm[23];
         const rightHip = lm[24];
 
-        // Calculate shoulder center in pixels
+        // Calculate shoulder center coords in pixels
         const shoulderCenterX = ((leftShoulder.x + rightShoulder.x) / 2) * w;
         const shoulderCenterY = ((leftShoulder.y + rightShoulder.y) / 2) * h;
 
@@ -174,21 +220,21 @@
         // Width between shoulders
         const shoulderWidth = Math.abs(rightShoulder.x - leftShoulder.x) * w;
 
-        // Scale factors to fit the shirt nicely
+        // Shirt size scaling (adjust to fit nicely)
         const shirtWidth = shoulderWidth * 1.6;
-        const shirtHeight = torsoHeight * 2.2;
+        const shirtHeight = torsoHeight * 2.1;
 
         // Position shirt so shoulders align:
         // x: center shirt on shoulderCenterX
-        // y: place shirt so top of shirt aligns a bit above shoulder center Y
+        // y: place shirt top slightly below shoulder line (to cover torso)
         const shirtX = shoulderCenterX - shirtWidth / 2;
-        const shirtY = shoulderCenterY - shirtHeight * 0.35;
+        const shirtY = shoulderCenterY + torsoHeight * 0.05;
 
         ctx.drawImage(shirt, shirtX, shirtY, shirtWidth, shirtHeight);
       }
     });
 
-    // Start the camera with MediaPipe Camera Utils
+    // Start camera (mirrored with CSS transform on video)
     const camera = new Camera(videoElement, {
       onFrame: async () => {
         await pose.send({ image: videoElement });
@@ -196,8 +242,60 @@
       width: 640,
       height: 480,
     });
-
     camera.start();
+
+    // 3D rotator controls for static preview
+    rotator.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      rotator.style.cursor = 'grabbing';
+    });
+    rotator.addEventListener('mouseup', () => {
+      isDragging = false;
+      rotator.style.cursor = 'grab';
+    });
+    rotator.addEventListener('mouseleave', () => {
+      isDragging = false;
+      rotator.style.cursor = 'grab';
+    });
+    rotator.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const deltaX = e.clientX - startX;
+      startX = e.clientX;
+
+      // Adjust rotation angle: multiply deltaX to control speed
+      rotationY += deltaX * 0.5;
+
+      // Clamp rotation between 0 and 360 degrees for smoothness
+      rotationY %= 360;
+
+      // Apply CSS 3D rotateY on image
+      staticPreview.style.transform = `rotateY(${rotationY}deg)`;
+    });
+
+    // Touch events for mobile
+    rotator.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      startX = e.touches[0].clientX;
+      rotator.style.cursor = 'grabbing';
+    });
+    rotator.addEventListener('touchend', () => {
+      isDragging = false;
+      rotator.style.cursor = 'grab';
+    });
+    rotator.addEventListener('touchcancel', () => {
+      isDragging = false;
+      rotator.style.cursor = 'grab';
+    });
+    rotator.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      const deltaX = e.touches[0].clientX - startX;
+      startX = e.touches[0].clientX;
+
+      rotationY += deltaX * 0.5;
+      rotationY %= 360;
+      staticPreview.style.transform = `rotateY(${rotationY}deg)`;
+    });
   </script>
 </body>
 </html>
