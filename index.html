@@ -39,10 +39,8 @@
       width: 640px;
       height: 480px;
       border-radius: 12px;
-      /* Mirror video for natural selfie */
-      transform: scaleX(-1);
+      transform: scaleX(-1); /* Mirror video */
       z-index: 1;
-      object-fit: cover;
     }
     canvas {
       position: absolute;
@@ -51,8 +49,7 @@
       width: 640px;
       height: 480px;
       border-radius: 12px;
-      z-index: 2; /* on top */
-      /* Don't mirror canvas, we mirror image while drawing */
+      z-index: 2;
     }
     input[type="file"] {
       margin-top: 10px;
@@ -140,7 +137,7 @@
     let shirt = new Image();
     let shirtLoaded = false;
 
-    // Variables for rotator 3D effect
+    // Rotator 3D effect variables
     let rotationY = 0;
     let isDragging = false;
     let startX = 0;
@@ -177,9 +174,10 @@
 
     shirt.onload = () => {
       shirtLoaded = true;
+      console.log("Shirt image loaded");
     };
 
-    // MediaPipe Pose setup
+    // Setup MediaPipe Pose
     const pose = new Pose({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`,
     });
@@ -195,9 +193,14 @@
     pose.onResults((results) => {
       ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-      // Mirror the image on canvas to match mirrored video element
+      if (!results.image) {
+        console.warn("No image available yet.");
+        return;
+      }
+
+      // Mirror the video frame on canvas (to match mirrored video element)
       ctx.save();
-      ctx.scale(-1, 1);
+      ctx.scale(-1, 1); // horizontal flip
       ctx.drawImage(results.image, -canvasElement.width, 0, canvasElement.width, canvasElement.height);
       ctx.restore();
 
@@ -207,7 +210,7 @@
         const h = canvasElement.height;
 
         // Flip landmarks horizontally to match mirrored video
-        const flippedLm = lm.map((point) => ({
+        const flippedLm = lm.map(point => ({
           x: 1 - point.x,
           y: point.y,
           z: point.z,
@@ -218,6 +221,11 @@
         const rightShoulder = flippedLm[12];
         const leftHip = flippedLm[23];
         const rightHip = flippedLm[24];
+
+        if (!leftShoulder || !rightShoulder || !leftHip || !rightHip) {
+          console.warn("Missing key landmarks for shirt placement");
+          return;
+        }
 
         const shoulderCenterX = ((leftShoulder.x + rightShoulder.x) / 2) * w;
         const shoulderCenterY = ((leftShoulder.y + rightShoulder.y) / 2) * h;
@@ -237,7 +245,7 @@
       }
     });
 
-    // Start camera (mirrored visually with CSS transform)
+    // Start camera (mirrored by CSS transform on video)
     const camera = new Camera(videoElement, {
       onFrame: async () => {
         await pose.send({ image: videoElement });
@@ -293,6 +301,7 @@
 
       rotationY += deltaX * 0.5;
       rotationY %= 360;
+
       staticPreview.style.transform = `rotateY(${rotationY}deg)`;
     });
   </script>
