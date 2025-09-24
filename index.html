@@ -195,29 +195,32 @@
     pose.onResults((results) => {
       ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-      // Draw video frame (already mirrored by CSS on video)
+      // Draw video frame (mirrored by CSS on video)
       ctx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
       if (results.poseLandmarks && shirtLoaded) {
-        const lm = results.poseLandmarks;
+        // Mirror landmarks horizontally to match video mirroring
+        const lm = results.poseLandmarks.map(landmark => ({
+          x: 1 - landmark.x,
+          y: landmark.y,
+          z: landmark.z,
+          visibility: landmark.visibility
+        }));
+
         const w = canvasElement.width;
         const h = canvasElement.height;
 
-        // Get shoulders and hips landmarks
         const leftShoulder = lm[11];
         const rightShoulder = lm[12];
         const leftHip = lm[23];
         const rightHip = lm[24];
 
-        // Calculate shoulder center coords in pixels
         const shoulderCenterX = ((leftShoulder.x + rightShoulder.x) / 2) * w;
         const shoulderCenterY = ((leftShoulder.y + rightShoulder.y) / 2) * h;
 
-        // Calculate torso height (distance shoulder center to hip center)
         const hipCenterY = ((leftHip.y + rightHip.y) / 2) * h;
         const torsoHeight = hipCenterY - shoulderCenterY;
 
-        // Width between shoulders
         const shoulderWidth = Math.abs(rightShoulder.x - leftShoulder.x) * w;
 
         // Shirt size scaling (adjust to fit nicely)
