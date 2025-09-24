@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>ChechIT - AI Fashion Search & AR Try-On</title>
+  <meta charset="UTF-8" />
+  <title>ChechIT - AI Fashion Try-On</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -39,17 +39,23 @@
       width: 640px;
       height: 480px;
       border-radius: 12px;
-      transform: scaleX(-1); /* mirror */
+      transform: scaleX(-1);
     }
     input[type="file"] {
       margin-top: 10px;
     }
+    .static-shirt {
+      margin-top: 1rem;
+    }
+    .static-shirt img {
+      max-width: 300px;
+      border-radius: 12px;
+      border: 1px solid #ccc;
+    }
   </style>
 </head>
 <body>
-  <header>
-    👗 ChechIT – AI Fashion Search + AR Try-On
-  </header>
+  <header>👗 ChechIT – AI Fashion Try-On</header>
 
   <!-- AI Search -->
   <section>
@@ -61,14 +67,18 @@
   <!-- Upload -->
   <section>
     <h2>🖼️ Upload Your Clothing Image</h2>
-    <p>Choose a shirt/top image (preferably transparent PNG) to try it on using your camera.</p>
-    <input type="file" id="upload" accept="image/*">
+    <p>Choose a shirt/top image (preferably transparent PNG).</p>
+    <input type="file" id="upload" accept="image/*" />
+    <div class="static-shirt">
+      <p>🖼️ Preview (Catalog Style):</p>
+      <img id="staticPreview" src="" alt="Uploaded shirt preview" />
+    </div>
   </section>
 
   <!-- AR Try-On -->
   <section>
     <h2>🕶️ AR Clothing Try-On</h2>
-    <p>Turn on your camera. Once you upload a shirt image, it will overlay your body in real time.</p>
+    <p>Turn on your camera. Your uploaded shirt will overlay your body in real time.</p>
     <div class="ar-container">
       <video id="video" autoplay playsinline></video>
       <canvas id="output" width="640" height="480"></canvas>
@@ -84,10 +94,12 @@
     const canvasElement = document.getElementById('output');
     const ctx = canvasElement.getContext('2d');
 
+    const staticPreview = document.getElementById('staticPreview');
+
     let shirt = new Image();
     let shirtLoaded = false;
 
-    // Resize uploaded image before using it
+    // Upload & resize image
     document.getElementById('upload').addEventListener('change', (event) => {
       const file = event.target.files[0];
       if (!file) return;
@@ -96,7 +108,6 @@
       reader.onload = function (e) {
         const uploadedImage = new Image();
         uploadedImage.onload = () => {
-          // Resize image to prevent performance issues
           const maxSize = 512;
           const ratio = Math.min(maxSize / uploadedImage.width, maxSize / uploadedImage.height);
           const offCanvas = document.createElement('canvas');
@@ -106,10 +117,11 @@
           offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
           offCtx.drawImage(uploadedImage, 0, 0, offCanvas.width, offCanvas.height);
           shirt.src = offCanvas.toDataURL("image/png");
+          staticPreview.src = shirt.src; // show in catalog
         };
         uploadedImage.onerror = () => {
           shirtLoaded = false;
-          alert("Could not load the image. Try another PNG.");
+          alert("Could not load image. Try a different PNG.");
         };
         uploadedImage.src = e.target.result;
       };
@@ -120,9 +132,9 @@
       shirtLoaded = true;
     };
 
-    // Initialize MediaPipe Pose
+    // Setup MediaPipe
     const pose = new Pose({
-      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`,
     });
 
     pose.setOptions({
@@ -130,13 +142,13 @@
       smoothLandmarks: true,
       enableSegmentation: false,
       minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
+      minTrackingConfidence: 0.5,
     });
 
     pose.onResults((results) => {
       ctx.save();
       ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-      ctx.scale(-1, 1);  // Mirror horizontally
+      ctx.scale(-1, 1);
       ctx.translate(-canvasElement.width, 0);
       ctx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
@@ -157,15 +169,14 @@
         const torsoWidth = Math.abs(rightShoulder.x - leftShoulder.x) * w;
         const torsoHeight = Math.abs(hipCenterY - shoulderCenterY);
 
-        // Scale shirt to match torso
-        const widthScale = 1.6;
-        const heightScale = 2.4;
+        const widthScale = 1.7;
+        const heightScale = 2.3;
+
         const finalWidth = torsoWidth * widthScale;
         const finalHeight = torsoHeight * heightScale;
 
-        // Position shirt over chest/shoulders
         const x = shoulderCenterX - finalWidth / 2;
-        const y = shoulderCenterY - finalHeight * 0.35; // Lift up shirt
+        const y = shoulderCenterY - finalHeight * 0.42; // lifted higher
 
         ctx.drawImage(shirt, x, y, finalWidth, finalHeight);
       }
@@ -173,13 +184,13 @@
       ctx.restore();
     });
 
-    // Start camera
+    // Start Camera
     const camera = new Camera(videoElement, {
       onFrame: async () => {
         await pose.send({ image: videoElement });
       },
       width: 640,
-      height: 480
+      height: 480,
     });
 
     camera.start();
