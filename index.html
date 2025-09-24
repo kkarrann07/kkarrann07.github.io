@@ -39,9 +39,7 @@
       width: 640px;
       height: 480px;
       border-radius: 12px;
-      /* Mirror video for natural selfie */
-      transform: scaleX(-1);
-      /* Keep video above canvas */
+      /* NO mirror */
       z-index: 1;
     }
     canvas {
@@ -195,21 +193,15 @@
     pose.onResults((results) => {
       ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-      // Draw video frame (mirrored by CSS on video)
+      // Draw video frame (NO mirroring on video now)
       ctx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
       if (results.poseLandmarks && shirtLoaded) {
-        // Mirror landmarks horizontally to match video mirroring
-        const lm = results.poseLandmarks.map(landmark => ({
-          x: 1 - landmark.x,
-          y: landmark.y,
-          z: landmark.z,
-          visibility: landmark.visibility
-        }));
-
+        const lm = results.poseLandmarks;
         const w = canvasElement.width;
         const h = canvasElement.height;
 
+        // Get landmarks (shoulders, hips)
         const leftShoulder = lm[11];
         const rightShoulder = lm[12];
         const leftHip = lm[23];
@@ -233,72 +225,8 @@
         const shirtX = shoulderCenterX - shirtWidth / 2;
         const shirtY = shoulderCenterY + torsoHeight * 0.05;
 
-        ctx.drawImage(shirt, shirtX, shirtY, shirtWidth, shirtHeight);
-      }
-    });
-
-    // Start camera (mirrored with CSS transform on video)
-    const camera = new Camera(videoElement, {
-      onFrame: async () => {
-        await pose.send({ image: videoElement });
-      },
-      width: 640,
-      height: 480,
-    });
-    camera.start();
-
-    // 3D rotator controls for static preview
-    rotator.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      startX = e.clientX;
-      rotator.style.cursor = 'grabbing';
-    });
-    rotator.addEventListener('mouseup', () => {
-      isDragging = false;
-      rotator.style.cursor = 'grab';
-    });
-    rotator.addEventListener('mouseleave', () => {
-      isDragging = false;
-      rotator.style.cursor = 'grab';
-    });
-    rotator.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      const deltaX = e.clientX - startX;
-      startX = e.clientX;
-
-      // Adjust rotation angle: multiply deltaX to control speed
-      rotationY += deltaX * 0.5;
-
-      // Clamp rotation between 0 and 360 degrees for smoothness
-      rotationY %= 360;
-
-      // Apply CSS 3D rotateY on image
-      staticPreview.style.transform = `rotateY(${rotationY}deg)`;
-    });
-
-    // Touch events for mobile
-    rotator.addEventListener('touchstart', (e) => {
-      isDragging = true;
-      startX = e.touches[0].clientX;
-      rotator.style.cursor = 'grabbing';
-    });
-    rotator.addEventListener('touchend', () => {
-      isDragging = false;
-      rotator.style.cursor = 'grab';
-    });
-    rotator.addEventListener('touchcancel', () => {
-      isDragging = false;
-      rotator.style.cursor = 'grab';
-    });
-    rotator.addEventListener('touchmove', (e) => {
-      if (!isDragging) return;
-      const deltaX = e.touches[0].clientX - startX;
-      startX = e.touches[0].clientX;
-
-      rotationY += deltaX * 0.5;
-      rotationY %= 360;
-      staticPreview.style.transform = `rotateY(${rotationY}deg)`;
-    });
-  </script>
-</body>
-</html>
+        // Optional: Flip shirt horizontally so it faces user correctly (depends on your image)
+        // ctx.save();
+        // ctx.translate(shirtX + shirtWidth / 2, 0);
+        // ctx.scale(-1, 1);
+        // ctx.draw
