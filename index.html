@@ -1,209 +1,321 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>ChechIT - AI Fashion Try-On (MediaPipe BlazePose + OpenCV perspective warp)</title>
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    text-align: center;
-    background: #f7f7f7;
-    margin: 0; padding: 0;
-  }
-  header {
-    background: #222; color: white; padding: 1rem; font-weight: bold;
-  }
-  .ar-container {
-    position: relative;
-    width: 640px;
-    height: 480px;
-    margin: 1rem auto;
-    border-radius: 12px;
-    overflow: hidden;
-    background: black;
-  }
-  video, canvas {
-    position: absolute;
-    top: 0; left: 0;
-    width: 640px;
-    height: 480px;
-    border-radius: 12px;
-  }
-  #video {
-    transform: none; /* No mirror */
-  }
-  #canvas {
-    z-index: 10;
-  }
-  #upload {
-    margin: 1rem;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <title>ChechIT - AI Fashion Try-On (OpenCV + MoveNet)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+    header {
+      background: #222;
+      color: #fff;
+      padding: 1rem;
+      font-size: 1.4rem;
+      font-weight: bold;
+    }
+    section {
+      padding: 1rem 2rem 3rem 2rem;
+    }
+    .ar-container {
+      position: relative;
+      width: 640px;
+      height: 480px;
+      margin: auto;
+    }
+    video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 640px;
+      height: 480px;
+      border-radius: 12px;
+      transform: scaleX(-1); /* mirror camera for natural selfie */
+      z-index: 1;
+    }
+    canvas#outputCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 640px;
+      height: 480px;
+      border-radius: 12px;
+      z-index: 2;
+      /* no mirror on canvas */
+    }
+    input[type="file"] {
+      margin-top: 10px;
+    }
+    .static-shirt {
+      margin-top: 1rem;
+      perspective: 800px;
+      width: 320px;
+      margin-left: auto;
+      margin-right: auto;
+      user-select: none;
+    }
+    .rotator {
+      width: 100%;
+      height: 400px;
+      border-radius: 12px;
+      border: 1px solid #ccc;
+      overflow: hidden;
+      background: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: grab;
+      transition: transform 0.1s ease-out;
+    }
+    .rotator img {
+      max-width: 100%;
+      max-height: 100%;
+      pointer-events: none;
+      user-select: none;
+      border-radius: 12px;
+      backface-visibility: hidden;
+      transform-style: preserve-3d;
+    }
+    .rotator:active {
+      cursor: grabbing;
+    }
+  </style>
 </head>
 <body>
+  <header>👗 ChechIT – AI Fashion Try-On (OpenCV + MoveNet)</header>
 
-<header>👗 ChechIT – AI Fashion Try-On with BlazePose + OpenCV Perspective Warp</header>
+  <section>
+    <h2>Upload Your Shirt Image</h2>
+    <input type="file" id="upload" accept="image/*" />
+    <div class="static-shirt" aria-label="Static Shirt Viewer">
+      <p>🖼️ Preview (3D Rotator):</p>
+      <div class="rotator" id="rotator">
+        <img id="staticPreview" src="" alt="Uploaded shirt preview" />
+      </div>
+    </div>
+  </section>
 
-<input type="file" id="upload" accept="image/*" />
+  <section>
+    <h2>AR Try-On</h2>
+    <p>Allow camera access and watch the shirt overlay on your torso.</p>
+    <div class="ar-container">
+      <video id="video" autoplay playsinline></video>
+      <canvas id="outputCanvas" width="640" height="480"></canvas>
+    </div>
+  </section>
 
-<div class="ar-container">
-  <video id="video" autoplay playsinline></video>
-  <canvas id="canvas" width="640" height="480"></canvas>
-</div>
+  <!-- TensorFlow.js and MoveNet Model -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection/dist/movenet.min.js"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.4/pose.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.4/camera_utils.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.4/drawing_utils.js"></script>
-<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+  <!-- OpenCV.js -->
+  <script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvReady();" ></script>
 
-<script>
-  let video = document.getElementById('video');
-  let canvas = document.getElementById('canvas');
-  let ctx = canvas.getContext('2d');
-  let shirtImage = new Image();
-  let shirtLoaded = false;
+  <script>
+    let video = document.getElementById('video');
+    let outputCanvas = document.getElementById('outputCanvas');
+    let ctx = outputCanvas.getContext('2d');
 
-  // Load uploaded shirt image
-  document.getElementById('upload').addEventListener('change', e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      shirtImage.src = ev.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
-  shirtImage.onload = () => {
-    shirtLoaded = true;
-  };
+    let shirt = new Image();
+    let shirtLoaded = false;
 
-  // Wait for OpenCV to load
-  let cvReady = false;
-  function onOpenCvReady() {
-    cvReady = true;
-    console.log('OpenCV ready');
-  }
-  if (typeof cv !== 'undefined') {
-    cv['onRuntimeInitialized']=onOpenCvReady;
-  }
+    let staticPreview = document.getElementById('staticPreview');
+    let rotator = document.getElementById('rotator');
+    let rotationY = 0, isDragging = false, startX = 0;
 
-  // Setup MediaPipe BlazePose
-  const pose = new Pose.Pose({
-    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.4/${file}`
-  });
-  pose.setOptions({
-    modelComplexity: 2, // Full model, highest accuracy
-    smoothLandmarks: true,
-    enableSegmentation: false,
-    smoothSegmentation: false,
-    minDetectionConfidence: 0.7,
-    minTrackingConfidence: 0.7
-  });
-
-  pose.onResults(onResults);
-
-  // Start camera with MediaPipe camera utils (no mirror)
-  const mpCamera = new CameraUtils.Camera(video, {
-    onFrame: async () => {
-      await pose.send({image: video});
-    },
-    width: 640,
-    height: 480
-  });
-  mpCamera.start();
-
-  function onResults(results) {
-    if (!cvReady || !shirtLoaded) {
-      // Just draw the video frame if not ready
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
-      return;
-    }
-
-    // Draw the video frame first
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
-
-    if (!results.poseLandmarks) return;
-
-    // Get key landmarks needed for torso mapping
-    const landmarks = results.poseLandmarks;
-
-    // Landmarks indexes:
-    // Left shoulder = 11
-    // Right shoulder = 12
-    // Left hip = 23
-    // Right hip = 24
-
-    const leftShoulder = landmarks[11];
-    const rightShoulder = landmarks[12];
-    const leftHip = landmarks[23];
-    const rightHip = landmarks[24];
-
-    // Check confidence threshold (z or visibility could also be checked)
-    if (
-      leftShoulder.visibility < 0.5 || rightShoulder.visibility < 0.5 ||
-      leftHip.visibility < 0.5 || rightHip.visibility < 0.5
-    ) {
-      return; // skip if landmarks not confident enough
-    }
-
-    // Convert normalized coordinates to pixel coords
-    function normToPx(pt) {
-      return {
-        x: pt.x * canvas.width,
-        y: pt.y * canvas.height
+    // Load shirt image from upload
+    document.getElementById('upload').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+          // Resize shirt if too big
+          const maxSize = 512;
+          const ratio = Math.min(maxSize / img.width, maxSize / img.height, 1);
+          const offCanvas = document.createElement('canvas');
+          offCanvas.width = img.width * ratio;
+          offCanvas.height = img.height * ratio;
+          const offCtx = offCanvas.getContext('2d');
+          offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
+          offCtx.drawImage(img, 0, 0, offCanvas.width, offCanvas.height);
+          shirt.src = offCanvas.toDataURL("image/png");
+          staticPreview.src = shirt.src;
+          shirtLoaded = true;
+        };
+        img.src = ev.target.result;
       };
+      reader.readAsDataURL(file);
+    });
+
+    // Rotator handlers for static preview
+    rotator.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      rotator.style.cursor = 'grabbing';
+    });
+    rotator.addEventListener('mouseup', () => {
+      isDragging = false;
+      rotator.style.cursor = 'grab';
+    });
+    rotator.addEventListener('mouseleave', () => {
+      isDragging = false;
+      rotator.style.cursor = 'grab';
+    });
+    rotator.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      let deltaX = e.clientX - startX;
+      startX = e.clientX;
+      rotationY += deltaX * 0.5;
+      rotationY %= 360;
+      staticPreview.style.transform = `rotateY(${rotationY}deg)`;
+    });
+    rotator.addEventListener('touchstart', e => {
+      isDragging = true;
+      startX = e.touches[0].clientX;
+      rotator.style.cursor = 'grabbing';
+    });
+    rotator.addEventListener('touchend', e => {
+      isDragging = false;
+      rotator.style.cursor = 'grab';
+    });
+    rotator.addEventListener('touchcancel', e => {
+      isDragging = false;
+      rotator.style.cursor = 'grab';
+    });
+    rotator.addEventListener('touchmove', e => {
+      if (!isDragging) return;
+      let deltaX = e.touches[0].clientX - startX;
+      startX = e.touches[0].clientX;
+      rotationY += deltaX * 0.5;
+      rotationY %= 360;
+      staticPreview.style.transform = `rotateY(${rotationY}deg)`;
+    });
+
+    // OpenCV.js ready flag
+    let cvReady = false;
+    function onOpenCvReady() {
+      cvReady = true;
+      console.log('OpenCV.js is ready');
+      if (detectorReady) startVideo();
     }
 
-    let ptsDst = [
-      normToPx(leftShoulder),  // top-left shirt corner
-      normToPx(rightShoulder), // top-right shirt corner
-      normToPx(rightHip),      // bottom-right shirt corner
-      normToPx(leftHip)        // bottom-left shirt corner
-    ];
+    // Tensorflow MoveNet detector
+    let detector, detectorReady = false;
 
-    // Now prepare OpenCV Mats for perspective transform
+    async function createDetector() {
+      const model = poseDetection.SupportedModels.MoveNet;
+      detector = await poseDetection.createDetector(model, {
+        modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING
+      });
+      detectorReady = true;
+      console.log('MoveNet detector ready');
+      if (cvReady) startVideo();
+    }
 
-    // Source points on the shirt image (corners)
-    let ptsSrc = cv.matFromArray(4, 1, cv.CV_32FC2, [
-      0, 0,
-      shirtImage.width, 0,
-      shirtImage.width, shirtImage.height,
-      0, shirtImage.height
-    ]);
-    // Destination points on canvas (detected torso)
-    let ptsDstCv = cv.matFromArray(4, 1, cv.CV_32FC2, [
-      ptsDst[0].x, ptsDst[0].y,
-      ptsDst[1].x, ptsDst[1].y,
-      ptsDst[2].x, ptsDst[2].y,
-      ptsDst[3].x, ptsDst[3].y
-    ]);
+    createDetector();
 
-    // Read shirt image into OpenCV Mat
-    let srcMat = cv.imread(shirtImage);
+    // Start video and processing
+    async function startVideo() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+        video.srcObject = stream;
+        video.play();
+        requestAnimationFrame(processFrame);
+      } catch (err) {
+        alert('Error accessing camera: ' + err.message);
+      }
+    }
 
-    // Destination Mat: blank transparent canvas
-    let dstMat = new cv.Mat.zeros(canvas.height, canvas.width, cv.CV_8UC4);
+    async function processFrame() {
+      if (video.readyState < 2 || !shirtLoaded) {
+        requestAnimationFrame(processFrame);
+        return;
+      }
 
-    // Get perspective transform matrix
-    let M = cv.getPerspectiveTransform(ptsSrc, ptsDstCv);
+      // Get pose estimation
+      const poses = await detector.estimatePoses(video, { flipHorizontal: true });
+      ctx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
 
-    // Warp shirt image to destination area on canvas
-    cv.warpPerspective(srcMat, dstMat, M, new cv.Size(canvas.width, canvas.height), cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar(0,0,0,0));
+      // Draw mirrored video frame on canvas normally (no mirror here because video is mirrored by CSS)
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, -outputCanvas.width, 0, outputCanvas.width, outputCanvas.height);
+      ctx.restore();
 
-    // Convert result to ImageData and draw on canvas overlay
-    let imgData = new ImageData(new Uint8ClampedArray(dstMat.data), dstMat.cols, dstMat.rows);
-    ctx.putImageData(imgData, 0, 0);
+      if (poses.length > 0) {
+        const keypoints = poses[0].keypoints;
 
-    // Cleanup
-    ptsSrc.delete();
-    ptsDstCv.delete();
-    srcMat.delete();
-    dstMat.delete();
-    M.delete();
-  }
-</script>
+        // Get relevant keypoints (left/right shoulder, left/right hip)
+        const leftShoulder = keypoints.find(k => k.name === 'left_shoulder');
+        const rightShoulder = keypoints.find(k => k.name === 'right_shoulder');
+        const leftHip = keypoints.find(k => k.name === 'left_hip');
+        const rightHip = keypoints.find(k => k.name === 'right_hip');
 
+        if ([leftShoulder, rightShoulder, leftHip, rightHip].some(p => p == null || p.score < 0.4)) {
+          requestAnimationFrame(processFrame);
+          return;
+        }
+
+        // Use OpenCV.js to do affine transform and overlay shirt
+
+        // Convert points to cv.Point2
+        const ptsSrc = cv.matFromArray(3, 1, cv.CV_32FC2, [
+          0, 0, // shirt image top-left
+          shirt.width, 0, // shirt image top-right
+          0, shirt.height // shirt image bottom-left
+        ]);
+
+        // Calculate destination points on the canvas using detected keypoints:
+        // Map shirt top-left to left shoulder
+        // Map shirt top-right to right shoulder
+        // Map shirt bottom-left to midpoint between left hip and right hip (approx. torso bottom)
+
+        const dstLeftShoulder = new cv.Point(outputCanvas.width - leftShoulder.x * outputCanvas.width, leftShoulder.y * outputCanvas.height);
+        const dstRightShoulder = new cv.Point(outputCanvas.width - rightShoulder.x * outputCanvas.width, rightShoulder.y * outputCanvas.height);
+        const hipMidX = (leftHip.x + rightHip.x) / 2;
+        const hipMidY = (leftHip.y + rightHip.y) / 2;
+        const dstHipMid = new cv.Point(outputCanvas.width - hipMidX * outputCanvas.width, hipMidY * outputCanvas.height);
+
+        const ptsDst = cv.matFromArray(3, 1, cv.CV_32FC2, [
+          dstLeftShoulder.x, dstLeftShoulder.y,
+          dstRightShoulder.x, dstRightShoulder.y,
+          dstHipMid.x, dstHipMid.y
+        ]);
+
+        // Get affine transform matrix
+        let M = cv.getAffineTransform(ptsSrc, ptsDst);
+
+        // Create src Mat from shirt image
+        let src = cv.imread(shirt);
+
+        // Create destination Mat with transparent background
+        let dst = new cv.Mat.zeros(outputCanvas.height, outputCanvas.width, cv.CV_8UC4);
+
+        // Warp the shirt image onto dst Mat using affine transform
+        cv.warpAffine(src, dst, M, new cv.Size(outputCanvas.width, outputCanvas.height), cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar(0,0,0,0));
+
+        // Convert dst Mat to ImageData and draw on canvas
+        let imgData = new ImageData(new Uint8ClampedArray(dst.data), dst.cols, dst.rows);
+
+        ctx.putImageData(imgData, 0, 0);
+
+        // Cleanup
+        ptsSrc.delete();
+        ptsDst.delete();
+        M.delete();
+        src.delete();
+        dst.delete();
+      }
+
+      requestAnimationFrame(processFrame);
+    }
+  </script>
 </body>
 </html>
