@@ -2,17 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ChechIT – AR Try‑On with 3D Garment Mesh</title>
+  <title>ChechIT – AR Try‑On with 3D Catalog Viewer</title>
   <style>
-    body, html {
-      margin: 0; padding: 0; width: 100%; height: 100%;
-      overflow: hidden;
-      background: #f7f7f7;
+    body {
       font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      margin: 0;
+      padding: 0;
+      text-align: center;
     }
     header {
-      background: #222; color: white; padding: 1rem; font-size: 1.5rem;
-      text-align: center;
+      background: #222;
+      color: white;
+      padding: 1rem;
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    section {
+      padding: 2rem;
     }
     .ar-container {
       position: relative;
@@ -23,134 +30,250 @@
     video {
       position: absolute;
       top: 0; left: 0;
-      width: 640px; height: 480px;
-      transform: scaleX(-1); /* mirror for natural selfie view */
+      width: 640px;
+      height: 480px;
+      border-radius: 12px;
+      transform: scaleX(-1); /* mirror for selfie view */
       z-index: 1;
-      object-fit: cover;
     }
-    #three-canvas {
+    canvas {
       position: absolute;
       top: 0; left: 0;
-      width: 640px; height: 480px;
+      width: 640px;
+      height: 480px;
+      border-radius: 12px;
       z-index: 2;
+    }
+    input[type="file"] {
+      margin-top: 10px;
+    }
+    .static-shirt {
+      margin-top: 1rem;
+      perspective: 800px;
+      width: 300px;
+      margin-left: auto;
+      margin-right: auto;
+      user-select: none;
+    }
+    .rotator {
+      width: 100%;
+      height: 400px;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      background: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      cursor: grab;
+      transition: transform 0.1s ease-out;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    }
+    .rotator img {
+      max-width: 100%;
+      max-height: 100%;
       pointer-events: none;
+      user-select: none;
+      transform-style: preserve-3d;
+      backface-visibility: hidden;
+      transition: transform 0.1s ease-out;
+    }
+    .rotator:active {
+      cursor: grabbing;
     }
   </style>
 </head>
 <body>
-  <header>👗 ChechIT – AR Try‑On with 3D Garment</header>
-  <div class="ar-container">
-    <video id="video" autoplay playsinline></video>
-    <canvas id="three-canvas"></canvas>
-  </div>
+  <header>👗 ChechIT – AR Try‑On & 3D Catalog</header>
 
-  <!-- Scripts: TFJS, Pose, Three.js, GLTFLoader -->
+  <section>
+    <h2>🔍 AI Fashion Search</h2>
+    <iframe src="https://kkarrann07-Fashion.hf.space" width="100%" height="500"></iframe>
+  </section>
+
+  <section>
+    <h2>🖼️ Upload Your Shirt (Catalog)</h2>
+    <input type="file" id="upload" accept="image/*" />
+    <div class="static-shirt">
+      <p>📦 Catalog Viewer (Drag to Rotate):</p>
+      <div class="rotator" id="rotator">
+        <img id="staticPreview" src="" alt="Shirt Preview" />
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>🕶️ AR Try-On</h2>
+    <div class="ar-container">
+      <video id="video" autoplay playsinline></video>
+      <canvas id="output" width="640" height="480"></canvas>
+    </div>
+  </section>
+
+  <!-- TensorFlow.js + Pose Detection + MediaPipe -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
 
   <script>
     const videoElem = document.getElementById('video');
-    const threeCanvas = document.getElementById('three-canvas');
+    const canvasElem = document.getElementById('output');
+    const ctx = canvasElem.getContext('2d');
 
+    const staticPreview = document.getElementById('staticPreview');
+    const rotator = document.getElementById('rotator');
+
+    let shirt = new Image();
+    let shirtLoaded = false;
+
+    // For catalog 3D effect
+    let rotationY = 0;
+    let isDragging = false;
+    let startX = 0;
+
+    document.getElementById('upload').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          // Optionally resize if large
+          const maxSize = 512;
+          const ratio = Math.min(maxSize / img.width, maxSize / img.height, 1);
+          const off = document.createElement('canvas');
+          off.width = img.width * ratio;
+          off.height = img.height * ratio;
+          const offCtx = off.getContext('2d');
+          offCtx.drawImage(img, 0, 0, off.width, off.height);
+          shirt.src = off.toDataURL('image/png');
+          staticPreview.src = shirt.src;
+          rotationY = 0;
+          staticPreview.style.transform = `rotateY(0deg)`;
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    shirt.onload = () => {
+      shirtLoaded = true;
+      console.log("Shirt loaded for overlay");
+    };
+
+    // Catalog rotator drag logic
+    rotator.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      rotator.style.cursor = 'grabbing';
+    });
+    rotator.addEventListener('mouseup', () => {
+      isDragging = false;
+      rotator.style.cursor = 'grab';
+    });
+    rotator.addEventListener('mouseleave', () => {
+      isDragging = false;
+      rotator.style.cursor = 'grab';
+    });
+    rotator.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const delta = e.clientX - startX;
+      startX = e.clientX;
+      rotationY += delta * 0.5;
+      rotationY %= 360;
+      staticPreview.style.transform = `rotateY(${rotationY}deg)`;
+    });
+    // Add touch support
+    rotator.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      startX = e.touches[0].clientX;
+      rotator.style.cursor = 'grabbing';
+    });
+    rotator.addEventListener('touchend', () => {
+      isDragging = false;
+      rotator.style.cursor = 'grab';
+    });
+    rotator.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      const delta = e.touches[0].clientX - startX;
+      startX = e.touches[0].clientX;
+      rotationY += delta * 0.5;
+      rotationY %= 360;
+      staticPreview.style.transform = `rotateY(${rotationY}deg)`;
+    });
+
+    // Pose detection setup
     let detector;
 
-    // Three.js scene setup
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, 640 / 480, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ canvas: threeCanvas, alpha: true });
-    renderer.setSize(640, 480);
-    renderer.setPixelRatio(window.devicePixelRatio);
-
-    // Lights
-    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
-    scene.add(ambient);
-    const dir = new THREE.DirectionalLight(0xffffff, 0.5);
-    dir.position.set(0, 1, 1);
-    scene.add(dir);
-
-    // Load 3D shirt model
-    let shirtMesh = null;
-    const loader = new THREE.GLTFLoader();
-    loader.load(
-      'path/to/your/shirt_model.glb',  // <-- You must provide this model
-      function (gltf) {
-        shirtMesh = gltf.scene;
-        shirtMesh.scale.set(1, 1, 1);
-        scene.add(shirtMesh);
-      },
-      undefined,
-      function (error) {
-        console.error("Error loading shirt model:", error);
-      }
-    );
-
-    // Position camera so it “sees” the model and video overlay
-    camera.position.set(0, 0, 5);  // You may need to adjust
-    camera.lookAt(0, 0, 0);
-
-    // Start camera & pose
     async function initPose() {
       const model = poseDetection.SupportedModels.BlazePose;
       detector = await poseDetection.createDetector(model, {
         runtime: 'mediapipe',
-        modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+        modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING, // or full variant
         enableSmoothing: true
       });
-      startVideo();
-      requestAnimationFrame(renderLoop);
+      startCamera();
     }
 
-    async function startVideo() {
+    async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
         videoElem.srcObject = stream;
-        await videoElem.play();
+        videoElem.play();
+        requestAnimationFrame(tick);
       } catch (err) {
         console.error("Camera error:", err);
       }
     }
 
-    async function renderLoop() {
-      if (videoElem.readyState >= 2 && detector && shirtMesh) {
+    async function tick() {
+      if (videoElem.readyState >= 2 && shirtLoaded && detector) {
+        // Estimate pose
         const poses = await detector.estimatePoses(videoElem, { flipHorizontal: true });
-        if (poses && poses.length > 0) {
-          const p = poses[0];
-          const k = p.keypoints;
+        ctx.clearRect(0, 0, canvasElem.width, canvasElem.height);
 
-          // Example: pick landmarks for shoulders, hips
-          const leftShoulder = k.find(kp => kp.name === 'left_shoulder');
-          const rightShoulder = k.find(kp => kp.name === 'right_shoulder');
-          const leftHip = k.find(kp => kp.name === 'left_hip');
-          const rightHip = k.find(kp => kp.name === 'right_hip');
+        // Draw mirrored video frame
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(videoElem, -canvasElem.width, 0, canvasElem.width, canvasElem.height);
+        ctx.restore();
+
+        if (poses && poses.length > 0) {
+          const pose = poses[0];
+          const keypoints = pose.keypoints;
+
+          // Extract shoulders and hips
+          const leftShoulder = keypoints.find(k => k.name === 'left_shoulder');
+          const rightShoulder = keypoints.find(k => k.name === 'right_shoulder');
+          const leftHip = keypoints.find(k => k.name === 'left_hip');
+          const rightHip = keypoints.find(k => k.name === 'right_hip');
 
           if (leftShoulder && rightShoulder && leftHip && rightHip) {
-            // Convert normalized coords to screen coords
-            const w = 640, h = 480;
-            const ls = { x: (leftShoulder.x * w) - w/2, y: -(leftShoulder.y * h) + h/2 };
-            const rs = { x: (rightShoulder.x * w) - w/2, y: -(rightShoulder.y * h) + h/2 };
-            const lh = { x: (leftHip.x * w) - w/2, y: -(leftHip.y * h) + h/2 };
-            const rh = { x: (rightHip.x * w) - w/2, y: -(rightHip.y * h) + h/2 };
+            const w = canvasElem.width;
+            const h = canvasElem.height;
 
-            // Compute center and orientation of torso in 3D
-            const centerX = (ls.x + rs.x) / 2;
-            const centerY = (ls.y + rs.y) / 2;
-            const width = Math.hypot(rs.x - ls.x, rs.y - ls.y);
-            const height = ( ((lh.y + rh.y)/2) - centerY );
+            // Coordinates are normalized, convert to pixels
+            const sx = (leftShoulder.x + rightShoulder.x) / 2 * w;
+            const sy = (leftShoulder.y + rightShoulder.y) / 2 * h;
 
-            // Update shirt mesh transform
-            shirtMesh.position.set(centerX * 0.01, centerY * 0.01, 0);
-            shirtMesh.scale.set(width * 0.01, height * 0.01, width * 0.01);
-            // Optionally rotate in Z based on shoulder slope
-            const angle = Math.atan2(rs.y - ls.y, rs.x - ls.x);
-            shirtMesh.rotation.set(0, 0, angle);
+            const hy = (leftHip.y + rightHip.y) / 2 * h;
+            const torsoH = hy - sy;
+
+            const shoulderW = Math.abs(rightShoulder.x - leftShoulder.x) * w;
+
+            const sw = shoulderW * 1.6;
+            const sh = torsoH * 2.1;
+
+            const px = sx - sw / 2;
+            const py = sy + torsoH * 0.05;
+
+            ctx.drawImage(shirt, px, py, sw, sh);
           }
         }
       }
 
-      renderer.render(scene, camera);
-      requestAnimationFrame(renderLoop);
+      requestAnimationFrame(tick);
     }
 
     initPose();
