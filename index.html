@@ -1,255 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ChechIT – AR Try-On (MoveNet)</title>
-<style>
-  :root {
-    --bg: #f5f7fa;
-    --card: #fff;
-    --accent: #6a11cb;
-    --accent2: #2575fc;
-    --muted: #666;
-    --radius: 14px;
-    --max-width: 1100px;
-  }
-  html, body {
-    height: 100%; margin: 0;
-    font-family: "Inter", system-ui, Arial, sans-serif;
-    background: var(--bg); color: #111;
-  }
-  .container { max-width: var(--max-width); margin: 1.5rem auto; padding: 1rem; }
-  header {
-    background: linear-gradient(135deg,var(--accent),var(--accent2));
-    color: #fff; padding: 1rem 1.2rem;
-    border-radius: var(--radius);
-    font-weight: 700; display:flex; align-items:center; gap:12px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-  }
-  .grid { display: grid; grid-template-columns: 1fr 420px; gap: 1.2rem; margin-top: 1rem; }
-  @media (max-width:980px) {
-    .grid { grid-template-columns: 1fr; }
-    .ar-container { width: 100%; height: auto; }
-    video,canvas { width: 100%; height: auto; }
-  }
-  .card {
-    background: var(--card); border-radius: var(--radius);
-    padding: 1rem 1.2rem;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-    overflow: hidden;
-  }
-  .rotator {
-    height: 220px; border-radius: var(--radius); border:1px solid #e3e3e3;
-    display:flex; align-items:center; justify-content:center;
-    overflow:hidden; background:#fafafa; cursor:grab; touch-action:none;
-  }
-  .rotator img { max-width:100%; max-height:100%; pointer-events:none; backface-visibility:hidden; transform-style:preserve-3d; transition:transform .12s linear; }
-  .ar-container {
-    position: relative; width:640px; height:480px;
-    border-radius: var(--radius); overflow:hidden;
-    background:#000; border:2px solid #eee;
-  }
-  video { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; z-index:1; }
-  canvas { position:absolute; top:0; left:0; width:100%; height:100%; z-index:2; pointer-events:none; }
-  .fallback { display:none; padding:1rem; text-align:center; }
-  button {
-    background: linear-gradient(135deg,var(--accent),var(--accent2));
-    color:#fff; padding:.5rem .9rem; border-radius:8px;
-    border:0; font-size:.95rem; cursor:pointer; font-weight:600;
-    transition: all .2s ease;
-  }
-  button:hover { opacity:.9; transform:translateY(-1px); }
-  button.secondary { background:#fff; color:var(--accent); border:1px solid #ddd; }
-  .muted { color:var(--muted); font-size:.9rem; }
-  .small { font-size:.85rem; color:var(--muted); }
-</style>
+  <meta charset="UTF-8">
+  <title>AR Fashion Try-On</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    header {
+      text-align: center;
+      padding: 20px;
+    }
+    header h1 {
+      font-size: 2em;
+      margin: 0;
+      color: #ffcc70;
+    }
+    #controls {
+      margin: 10px;
+    }
+    button, input[type="file"] {
+      background: #ff7e5f;
+      border: none;
+      color: #fff;
+      padding: 10px 16px;
+      margin: 5px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+      font-weight: bold;
+    }
+    button:hover, input[type="file"]:hover {
+      background: #feb47b;
+    }
+    #videoCanvas {
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+  </style>
 </head>
 <body>
-<div class="container">
-  <header><div style="font-size:1.5rem">👗</div><div class="brand">ChechIT – AR Try-On (MoveNet)</div></header>
+  <header>
+    <h1>✨ AR Fashion Try-On</h1>
+  </header>
 
-  <div class="card">
-    <h2>🔍 AI Fashion Search</h2>
-    <p class="small">(Optional) Hugging Face space embedded below.</p>
-    <iframe src="https://kkarrann07-Fashion.hf.space" title="AI Fashion Search" loading="lazy" style="width:100%;height:280px;border:0;border-radius:8px"></iframe>
+  <div id="controls">
+    <input type="file" id="shirtUpload" accept="image/*">
+    <input type="file" id="watchUpload" accept="image/*">
+    <input type="file" id="gogglesUpload" accept="image/*">
+    <button id="screenshotBtn">📸 Screenshot</button>
   </div>
 
-  <div class="grid">
-    <div>
-      <div class="card">
-        <h2>🖼 Upload Overlays</h2>
-        <label>Shirt (PNG)</label>
-        <input id="uploadShirt" type="file" accept="image/png,image/webp" />
-        <label>Watch (PNG)</label>
-        <input id="uploadWatch" type="file" accept="image/png,image/webp" />
-        <label>Goggles (PNG)</label>
-        <input id="uploadGoggles" type="file" accept="image/png,image/webp" />
+  <canvas id="videoCanvas" width="640" height="480"></canvas>
 
-        <div style="margin-top:10px">
-          <div class="rotator" id="rotator"><img id="staticPreview" src="" alt="preview" /></div>
-          <div style="display:flex;gap:.5rem;margin-top:.6rem;align-items:center">
-            <button id="resetPreview" class="secondary">Reset</button>
-            <button id="downloadPreview">Download</button>
-            <div style="flex:1"></div>
-            <div class="small">Tip: use transparent PNGs (<2MB) for best results.</div>
-          </div>
-        </div>
-      </div>
-    </div>
+  <!-- TensorFlow.js + Pose Detection -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.21.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
 
-    <div>
-      <div class="card">
-        <h2>🕶 AR Try-On</h2>
-        <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.6rem">
-          <button id="screenshotBtn">Screenshot</button>
-          <div style="margin-left:auto;color:var(--muted)">MoveNet (TF.js)</div>
-        </div>
-        <div class="ar-container" id="arWrap">
-          <div class="fallback card" id="fallback" role="status" aria-live="polite">
-            <p><strong>Camera unavailable</strong></p>
-            <p class="muted">Check permissions or try on a compatible device.</p>
-          </div>
-          <video id="video" autoplay playsinline muted></video>
-          <canvas id="overlayCanvas" width="640" height="480"></canvas>
-        </div>
-        <p class="small" style="margin-top:.6rem">Blue dots = pose landmarks (debug). Overlays: shirt, watch, goggles.</p>
-      </div>
-    </div>
-  </div>
-</div>
+  <script>
+    const canvas = document.getElementById("videoCanvas");
+    const ctx = canvas.getContext("2d");
+    const video = document.createElement("video");
 
-<!-- TensorFlow.js + Pose Detection -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.21.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+    let detector, poses = [];
+    let shirtImg = new Image();
+    let watchImg = new Image();
+    let gogglesImg = new Image();
 
-<script>
-const video = document.getElementById('video');
-const canvas = document.getElementById('overlayCanvas');
-const ctx = canvas.getContext('2d');
-const uploadShirt = document.getElementById('uploadShirt');
-const uploadWatch = document.getElementById('uploadWatch');
-const uploadGoggles = document.getElementById('uploadGoggles');
-const staticPreview = document.getElementById('staticPreview');
-const rotator = document.getElementById('rotator');
-const resetPreview = document.getElementById('resetPreview');
-const downloadPreview = document.getElementById('downloadPreview');
-const screenshotBtn = document.getElementById('screenshotBtn');
-const fallback = document.getElementById('fallback');
+    // Load defaults
+    shirtImg.src = "https://i.ibb.co/8mT3GgK/tshirt.png";
+    watchImg.src = "https://i.ibb.co/MN6pXz8/watch.png";
+    gogglesImg.src = "https://i.ibb.co/pWmC4Gn/goggles.png";
 
-let detector, latestResults = null;
+    // Upload handlers
+    document.getElementById("shirtUpload").onchange = e => {
+      shirtImg.src = URL.createObjectURL(e.target.files[0]);
+    };
+    document.getElementById("watchUpload").onchange = e => {
+      watchImg.src = URL.createObjectURL(e.target.files[0]);
+    };
+    document.getElementById("gogglesUpload").onchange = e => {
+      gogglesImg.src = URL.createObjectURL(e.target.files[0]);
+    };
 
-// Default images
-const shirtImg = new Image(); shirtImg.src = 'https://i.ibb.co/6J5f7rV/tshirt.png'; let shirtLoaded = true;
-const watchImg = new Image(); watchImg.src = 'https://i.ibb.co/6n4Z1sN/watch-sample.png'; let watchLoaded = true;
-const gogglesImg = new Image(); gogglesImg.src = 'https://i.ibb.co/9Zr7t5P/goggles-sample.png'; let gogglesLoaded = true;
+    // Screenshot
+    document.getElementById("screenshotBtn").onclick = () => {
+      const link = document.createElement("a");
+      link.download = "screenshot.png";
+      link.href = canvas.toDataURL();
+      link.click();
+    };
 
-function handleFileInput(file, imgObj, setLoadedFlag){
-  if (!file) return;
-  if(file.size > 2*1024*1024){ alert('File too large (<2MB)'); return; }
-  const reader = new FileReader();
-  reader.onload = e => { imgObj.src = e.target.result; staticPreview.src = e.target.result; setLoadedFlag(true); };
-  reader.readAsDataURL(file);
-}
-uploadShirt.addEventListener('change', e => handleFileInput(e.target.files[0], shirtImg, v=>shirtLoaded=v));
-uploadWatch.addEventListener('change', e => handleFileInput(e.target.files[0], watchImg, v=>watchLoaded=v));
-uploadGoggles.addEventListener('change', e => handleFileInput(e.target.files[0], gogglesImg, v=>gogglesLoaded=v));
+    async function init() {
+      // Start camera
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480 }, audio: false
+      });
+      video.srcObject = stream;
+      await video.play();
 
-resetPreview.addEventListener('click', ()=>{ staticPreview.src=''; staticPreview.style.transform='rotateY(0deg)'; });
-downloadPreview.addEventListener('click', ()=>{ if(!staticPreview.src) return alert('No preview'); const a=document.createElement('a'); a.href=staticPreview.src; a.download='overlay-preview.png'; a.click(); });
+      // Load MoveNet
+      detector = await poseDetection.createDetector(
+        poseDetection.SupportedModels.MoveNet,
+        { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+      );
 
-let dragging=false, startX=0, curRot=0;
-rotator.addEventListener('pointerdown', e=>{ dragging=true; rotator.setPointerCapture(e.pointerId); startX=e.clientX; });
-rotator.addEventListener('pointermove', e=>{ if(!dragging) return; const dx=e.clientX-startX; startX=e.clientX; curRot+=dx*0.6; staticPreview.style.transform=`rotateY(${curRot}deg)`; });
-rotator.addEventListener('pointerup', e=>{ dragging=false; try{ rotator.releasePointerCapture(e.pointerId);}catch{}});
-rotator.addEventListener('pointerleave', ()=>dragging=false);
+      renderLoop();
+    }
 
-screenshotBtn.addEventListener('click', ()=>{
-  const w=canvas.width, h=canvas.height;
-  const tmp=document.createElement('canvas'); tmp.width=w; tmp.height=h;
-  const t=tmp.getContext('2d');
-  t.drawImage(video,0,0,w,h);
-  t.drawImage(canvas,0,0,w,h);
-  window.open(tmp.toDataURL('image/png'),'_blank');
-});
+    async function renderLoop() {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-async function initDetector(){
-  detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, {
-    modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING
-  });
-  estimate();
-}
+      if (detector) {
+        poses = await detector.estimatePoses(video);
+        if (poses.length > 0) {
+          drawOverlays(poses[0].keypoints);
+        }
+      }
+      requestAnimationFrame(renderLoop);
+    }
 
-async function startCamera(){
-  fallback.style.display='block';
-  fallback.innerHTML='<p><strong>Starting camera…</strong></p><p class="muted">Allow camera permission</p>';
-  try{
-    const stream=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'user'},audio:false});
-    video.srcObject=stream;
-    await video.play();
-    fallback.style.display='none';
-  }catch(err){
-    fallback.innerHTML=`<p><strong>Camera error</strong></p><p class="muted">${err.message}</p>`;
-  }
-}
+    function drawOverlays(keypoints) {
+      const get = name => keypoints.find(k => k.name === name);
 
-async function estimate(){
-  if(video.readyState >= 2 && detector){
-    const poses = await detector.estimatePoses(video);
-    latestResults = poses[0];
-  }
-  drawOverlay();
-  requestAnimationFrame(estimate);
-}
+      const leftShoulder = get("left_shoulder");
+      const rightShoulder = get("right_shoulder");
+      const leftHip = get("left_hip");
+      const rightHip = get("right_hip");
+      const leftWrist = get("left_wrist");
+      const rightWrist = get("right_wrist");
+      const leftEye = get("left_eye");
+      const rightEye = get("right_eye");
 
-// Overlay drawing
-function drawOverlay(){
-  const w=canvas.width=video.videoWidth||640;
-  const h=canvas.height=video.videoHeight||480;
-  ctx.clearRect(0,0,w,h);
-  ctx.drawImage(video,0,0,w,h);
+      if (leftShoulder && rightShoulder && leftHip && rightHip) {
+        const torsoWidth = Math.hypot(rightShoulder.x-leftShoulder.x, rightShoulder.y-leftShoulder.y);
+        const torsoHeight = Math.hypot(leftHip.y-leftShoulder.y, rightHip.y-rightShoulder.y);
+        ctx.drawImage(shirtImg,
+          leftShoulder.x-20, leftShoulder.y-20,
+          torsoWidth+40, torsoHeight+60
+        );
+      }
 
-  if(!latestResults || !latestResults.keypoints) return;
-  const kp = latestResults.keypoints;
-  const get = name => { const k = kp.find(p=>p.name===name); return (k && k.score>0.3)?k:null; };
+      if (leftWrist) {
+        ctx.drawImage(watchImg, leftWrist.x-20, leftWrist.y-20, 40, 40);
+      }
+      if (rightWrist) {
+        ctx.drawImage(watchImg, rightWrist.x-20, rightWrist.y-20, 40, 40);
+      }
 
-  // Shirt
-  const lShoulder=get('left_shoulder'), rShoulder=get('right_shoulder'), lHip=get('left_hip'), rHip=get('right_hip');
-  if(lShoulder && rShoulder && lHip && rHip && shirtLoaded){
-    const centerX=(lShoulder.x+rShoulder.x)/2;
-    const centerY=(lShoulder.y+rShoulder.y)/2;
-    const hipY=(lHip.y+rHip.y)/2;
-    const torsoH=Math.max(hipY-centerY,10);
-    const dx=rShoulder.x-lShoulder.x, dy=rShoulder.y-lShoulder.y;
-    const shoulderDist=Math.sqrt(dx*dx+dy*dy), angle=Math.atan2(dy,dx);
-    const shirtW=shoulderDist*1.6, shirtH=torsoH*2.0, shirtY=centerY+torsoH*0.2;
-    ctx.save(); ctx.translate(centerX,shirtY+shirtH/2); ctx.rotate(angle);
-    ctx.drawImage(shirtImg,-shirtW/2,-shirtH/2,shirtW,shirtH); ctx.restore();
-  }
+      if (leftEye && rightEye) {
+        const eyeDist = Math.hypot(rightEye.x-leftEye.x, rightEye.y-leftEye.y);
+        ctx.drawImage(gogglesImg, leftEye.x-30, leftEye.y-40, eyeDist+60, eyeDist+40);
+      }
+    }
 
-  // Watch
-  const lWrist=get('left_wrist'), rWrist=get('right_wrist');
-  const wrist = (rWrist && (!lWrist || rWrist.score>=lWrist.score)) ? rWrist : lWrist;
-  if(wrist && watchLoaded){
-    const watchW=60, watchH=watchW*(watchImg.naturalHeight/watchImg.naturalWidth||1);
-    ctx.drawImage(watchImg,wrist.x-watchW/2,wrist.y-watchH/2,watchW,watchH);
-  }
-
-  // Goggles
-  const nose=get('nose'), lEye=get('left_eye'), rEye=get('right_eye');
-  if(nose && gogglesLoaded){
-    const eyeDist=(lEye&&rEye)?Math.hypot(lEye.x-rEye.x,lEye.y-rEye.y):60;
-    const gx=nose.x, gy=nose.y-eyeDist*0.05;
-    const gW=eyeDist*2.0, gH=gW*(gogglesImg.naturalHeight/gogglesImg.naturalWidth||1);
-    ctx.drawImage(gogglesImg,gx-gW/2,gy-gH/2,gW,gH);
-  }
-
-  // Debug dots
-  ctx.fillStyle='rgba(10,120,240,0.95)';
-  kp.forEach(p=>{ if(p.score>0.3){ ctx.beginPath(); ctx.arc(p.x,p.y,4,0,Math.PI*2); ctx.fill(); } });
-}
-
-startCamera().then(initDetector);
-</script>
+    init();
+  </script>
 </body>
 </html>
