@@ -12,7 +12,7 @@
     .grid{display:grid;grid-template-columns:1fr 420px;gap:1rem;margin-top:1rem}
     @media (max-width:980px){ .grid{grid-template-columns:1fr} .ar-container{width:100%;height:auto} video,canvas{width:100%;height:auto} .iframe-wrap iframe{height:420px} }
     .card{background:var(--card);border-radius:12px;padding:1rem;box-shadow:0 6px 18px rgba(0,0,0,0.06);overflow:hidden}
-    .rotator{height:340px;border-radius:var(--radius);border:1px solid #e3e3e3;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fafafa;cursor:grab;touch-action:none}
+    .rotator{height:220px;border-radius:var(--radius);border:1px solid #e3e3e3;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fafafa;cursor:grab;touch-action:none}
     .rotator img{max-width:100%;max-height:100%;pointer-events:none;backface-visibility:hidden;transform-style:preserve-3d;transition:transform .12s linear}
     .ar-container{position:relative;width:640px;height:480px;border-radius:var(--radius);overflow:hidden;background:#000}
     video{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;transform:scaleX(-1)}
@@ -30,10 +30,10 @@
     <div class="card">
       <h2>🔍 AI Fashion Search</h2>
       <p>Use our Hugging Face-powered model to search clothing with AI embeddings.</p>
-      <!-- NOTE: the HF iframe may produce mixed-content warnings if that space itself tries to load http:// resources.
-           That doesn't break the webcam. Remove the iframe if you want to stop those console warnings. -->
       <div class="iframe-wrap">
-        <iframe src="https://kkarrann07-Fashion.hf.space" title="AI Fashion Search" loading="lazy" style="width:100%;height:380px;border:0;border-radius:8px"></iframe>
+        <!-- Mixed-content warnings below come from this HF space trying to load http://0.0.0.0 resources.
+             They are unrelated to the webcam. Remove the iframe if you want to eliminate those console warnings. -->
+        <iframe src="https://kkarrann07-Fashion.hf.space" title="AI Fashion Search" loading="lazy" style="width:100%;height:320px;border:0;border-radius:8px"></iframe>
       </div>
     </div>
 
@@ -85,7 +85,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
 
   <script>
-    // Element refs
+    // --- DOM refs ---
     const video = document.getElementById('video');
     const canvas = document.getElementById('overlayCanvas');
     const ctx = canvas.getContext('2d', { alpha: true });
@@ -100,56 +100,57 @@
     const screenshotBtn = document.getElementById('screenshotBtn');
     const fallback = document.getElementById('fallback');
 
-    // Overlays
+    // --- overlays ---
     const shirtImg = new Image();
     const watchImg = new Image();
     const gogglesImg = new Image();
     let shirtLoaded=false, watchLoaded=false, gogglesLoaded=false;
 
-    function handleFileInput(file, img) {
+    function handleFileInput(file, img){
       if(!file) return;
       const r = new FileReader();
       r.onload = e => { img.src = e.target.result; staticPreview.src = e.target.result; };
       r.readAsDataURL(file);
     }
-    uploadShirt.addEventListener('change', e => handleFileInput(e.target.files[0], shirtImg));
-    uploadWatch.addEventListener('change', e => handleFileInput(e.target.files[0], watchImg));
-    uploadGoggles.addEventListener('change', e => handleFileInput(e.target.files[0], gogglesImg));
+    uploadShirt.addEventListener('change', e=>handleFileInput(e.target.files[0], shirtImg));
+    uploadWatch.addEventListener('change', e=>handleFileInput(e.target.files[0], watchImg));
+    uploadGoggles.addEventListener('change', e=>handleFileInput(e.target.files[0], gogglesImg));
     shirtImg.onload = () => shirtLoaded = true;
     watchImg.onload = () => watchLoaded = true;
     gogglesImg.onload = () => gogglesLoaded = true;
     resetPreview.addEventListener('click', ()=>{ staticPreview.src=''; staticPreview.style.transform='rotateY(0deg)'; });
     downloadPreview.addEventListener('click', ()=>{ if(!staticPreview.src) return alert('No preview'); const a=document.createElement('a'); a.href=staticPreview.src; a.download='preview.png'; a.click(); });
 
-    // simple rotator
+    // rotator
     let dragging=false, startX=0, curRot=0;
     rotator.addEventListener('pointerdown', e=>{ dragging=true; rotator.setPointerCapture(e.pointerId); startX=e.clientX; });
-    rotator.addEventListener('pointermove', e=>{ if(!dragging) return; const dx=e.clientX-startX; startX=e.clientX; curRot+=dx*0.6; staticPreview.style.transform=`rotateY(${curRot}deg)`;});
+    rotator.addEventListener('pointermove', e=>{ if(!dragging) return; const dx=e.clientX-startX; startX=e.clientX; curRot+=dx*0.6; staticPreview.style.transform=`rotateY(${curRot}deg)`; });
     rotator.addEventListener('pointerup', e=>{ dragging=false; try{rotator.releasePointerCapture(e.pointerId)}catch(_){} });
     rotator.addEventListener('pointerleave', ()=>dragging=false);
 
-    // mirror toggle
+    // mirror
     let mirrored=true;
-    mirrorToggle.addEventListener('click', ()=>{ mirrored=!mirrored; video.style.transform = mirrored ? 'scaleX(-1)' : 'scaleX(1)'; });
+    mirrorToggle.addEventListener('click', ()=>{ mirrored = !mirrored; video.style.transform = mirrored ? 'scaleX(-1)' : 'scaleX(1)'; });
 
     // screenshot
     screenshotBtn.addEventListener('click', ()=>{
-      const w=canvas.width, h=canvas.height;
-      const tmp=document.createElement('canvas'); tmp.width=w; tmp.height=h; const t=tmp.getContext('2d');
-      if(mirrored){ t.save(); t.scale(-1,1); t.drawImage(video,-w,0,w,h); t.restore(); } else t.drawImage(video,0,0,w,h);
-      t.drawImage(canvas,0,0,w,h); window.open(tmp.toDataURL('image/png'),'_blank');
+      const w = canvas.width, h = canvas.height;
+      const tmp = document.createElement('canvas'); tmp.width = w; tmp.height = h; const t = tmp.getContext('2d');
+      if(mirrored){ t.save(); t.scale(-1,1); t.drawImage(video, -w, 0, w, h); t.restore(); } else { t.drawImage(video, 0, 0, w, h); }
+      t.drawImage(canvas, 0, 0, w, h);
+      window.open(tmp.toDataURL('image/png'), '_blank');
     });
 
-    // --- MediaPipe Pose init (robust constructor) ---
+    // --- MediaPipe Pose setup (use correct constructor: new Pose(...)) ---
     let latestResults = null;
-    let PoseClass = window.Pose || (typeof Pose !== 'undefined' && Pose) || null;
-    if(!PoseClass){
-      console.error('MediaPipe Pose class not found. Check that https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js loaded.');
-      fallback.style.display='block';
-      fallback.innerHTML = `<p><strong>MediaPipe Pose failed to load</strong></p><p class="muted">Open console for details.</p>`;
+    let PoseConstructor = window.Pose || (typeof Pose !== 'undefined' && Pose) || null;
+    if(!PoseConstructor){
+      console.error('MediaPipe Pose not found. Check that pose.js loaded correctly.');
+      fallback.style.display = 'block';
+      fallback.innerHTML = `<p><strong>MediaPipe failed to load</strong></p><p class="muted">Open console for details.</p>`;
     }
-    const pose = PoseClass ? new PoseClass({
-      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
+    const pose = PoseConstructor ? new PoseConstructor({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
     }) : null;
 
     if(pose){
@@ -160,56 +161,60 @@
         minDetectionConfidence: 0.5,
         minTrackingConfidence: 0.5
       });
-      pose.onResults(results => { latestResults = results; });
+      pose.onResults((results) => { latestResults = results; });
     }
 
-    // --- Robust camera start ---
+    // --- Camera start (getUserMedia primary, Camera fallback) ---
     let cameraInstance = null;
     async function startCamera(){
       if(!pose){
-        console.error('Skipping camera start because pose is not available.');
+        console.error('Pose not available, cannot start camera.');
         return;
       }
 
-      const constraints = { audio:false, video:{ width:{ideal:640}, height:{ideal:480}, facingMode:"user" } };
-      fallback.style.display='block';
+      const constraints = { audio:false, video:{ width:{ideal:640}, height:{ideal:480}, facingMode:'user' } };
+
+      fallback.style.display = 'block';
       fallback.innerHTML = `<p><strong>Starting camera…</strong></p><p class="muted">Waiting for permission / device access.</p>`;
 
       function showCameraError(msg, obj){
         console.error('Camera error:', msg, obj);
-        fallback.style.display='block';
-        fallback.innerHTML = `<p><strong>Camera unavailable</strong></p><p class="muted">${(msg||'')}</p><p class="muted">Use HTTPS/localhost and check permissions.</p>`;
+        fallback.style.display = 'block';
+        fallback.innerHTML = `<p><strong>Camera unavailable</strong></p><p class="muted">${msg||''}</p><p class="muted">Use HTTPS/localhost and check camera permissions.</p>`;
       }
 
-      try{
-        // primary: getUserMedia
+      try {
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
-        try { await video.play(); } catch(e){ console.warn('video.play() failed:', e); }
-        // send frames to mediapipe
-        const sendLoop = async () => { try{ await pose.send({image: video}); } catch(_){}; requestAnimationFrame(sendLoop); };
-        sendLoop();
-        fallback.style.display='none';
+        try{ await video.play(); }catch(e){ console.warn('video.play failed:', e); }
+
+        // send frames to MediaPipe in a loop
+        (function sendLoop(){
+          try{ pose.send({image: video}); }catch(_){} 
+          requestAnimationFrame(sendLoop);
+        })();
+
+        fallback.style.display = 'none';
         console.log('Camera started via getUserMedia.');
         return;
-      }catch(err){
+      } catch (err) {
         console.warn('getUserMedia failed:', err);
-        // fallback: MediaPipe Camera helper
-        let CameraClass = window.Camera || (typeof Camera !== 'undefined' && Camera) || null;
-        if(!CameraClass){
-          showCameraError('MediaPipe Camera helper not found.', err);
+        // fallback to MediaPipe Camera helper if available
+        const CameraConstructor = window.Camera || (typeof Camera !== 'undefined' && Camera) || null;
+        if(!CameraConstructor){
+          showCameraError('Camera helper not found; getUserMedia failed: ' + (err && err.message ? err.message : String(err)), err);
           return;
         }
-        try{
-          cameraInstance = new CameraClass(video, {
-            onFrame: async ()=>{ try{ await pose.send({image: video}); } catch(_){} },
-            width:640, height:480
+        try {
+          cameraInstance = new CameraConstructor(video, {
+            onFrame: async () => { try { await pose.send({image: video}); } catch(_){} },
+            width: 640, height: 480
           });
           await cameraInstance.start();
-          fallback.style.display='none';
+          fallback.style.display = 'none';
           console.log('Camera started via MediaPipe Camera helper.');
           return;
-        }catch(err2){
+        } catch (err2){
           showCameraError(err2 && err2.message ? err2.message : String(err2), err2);
           return;
         }
@@ -219,7 +224,7 @@
     // start camera now
     startCamera();
 
-    // drawing loop
+    // drawing overlay
     function drawOverlay(){
       requestAnimationFrame(drawOverlay);
       const w = canvas.width = video.videoWidth || 640;
@@ -228,18 +233,18 @@
 
       if(!latestResults || !latestResults.image){
         ctx.save();
-        if(mirrored){ ctx.scale(-1,1); ctx.drawImage(video, -w, 0, w, h); } else ctx.drawImage(video,0,0,w,h);
+        if(mirrored){ ctx.scale(-1,1); ctx.drawImage(video, -w, 0, w, h); } else { ctx.drawImage(video, 0, 0, w, h); }
         ctx.restore();
         return;
       }
 
       ctx.save();
-      if(mirrored){ ctx.scale(-1,1); ctx.drawImage(latestResults.image, -w, 0, w, h); } else ctx.drawImage(latestResults.image, 0, 0, w, h);
+      if(mirrored){ ctx.scale(-1,1); ctx.drawImage(latestResults.image, -w, 0, w, h); } else { ctx.drawImage(latestResults.image, 0, 0, w, h); }
       ctx.restore();
 
       const rawLM = latestResults.poseLandmarks || [];
       if(!rawLM.length) return;
-      const lm = rawLM.map(p => ({ x: mirrored ? 1-p.x : p.x, y: p.y, z: p.z, visibility: p.visibility || 0 }));
+      const lm = rawLM.map(p => ({ x: mirrored ? 1 - p.x : p.x, y: p.y, z: p.z, visibility: p.visibility || 0 }));
 
       const ok = idx => (lm[idx] && typeof lm[idx].x === 'number' && lm[idx].visibility > 0.01);
       const leftShoulder = ok(11) ? lm[11] : null;
@@ -255,7 +260,6 @@
         const centerY = ((leftShoulder.y + rightShoulder.y)/2)*h;
         const hipY = ((leftHip.y + rightHip.y)/2)*h;
         const torsoH = Math.max(hipY - centerY, 10);
-
         const dx = (rightShoulder.x - leftShoulder.x)*w;
         const dy = (rightShoulder.y - leftShoulder.y)*h;
         const distShoulders = Math.sqrt(dx*dx + dy*dy);
@@ -264,12 +268,7 @@
           const shirtW = distShoulders * 1.45;
           const shirtH = torsoH * 2.0;
           const shirtY = centerY + torsoH * 0.1;
-          ctx.save();
-          ctx.translate(centerX, shirtY + shirtH/2);
-          // rotate according to shoulders angle (optional)
-          ctx.rotate(Math.atan2(dy,dx));
-          ctx.drawImage(shirtImg, -shirtW/2, -shirtH/2, shirtW, shirtH);
-          ctx.restore();
+          ctx.save(); ctx.translate(centerX, shirtY + shirtH/2); ctx.rotate(Math.atan2(dy,dx)); ctx.drawImage(shirtImg, -shirtW/2, -shirtH/2, shirtW, shirtH); ctx.restore();
         }
 
         if(watchLoaded){
@@ -285,7 +284,7 @@
 
         if(gogglesLoaded && nose){
           let eyeDist = distShoulders * 0.35;
-          if(ok(2) && ok(5)){ const eL=lm[2], eR=lm[5]; eyeDist = Math.hypot((eR.x-eL.x)*w, (eR.y-eL.y)*h); }
+          if(ok(2) && ok(5)){ const eL = lm[2], eR = lm[5]; eyeDist = Math.hypot((eR.x - eL.x)*w, (eR.y - eL.y)*h); }
           const gx = nose.x * w;
           const gy = nose.y * h - eyeDist*0.05;
           const gW = Math.max(eyeDist * 2.0, eyeDist * 1.6);
@@ -296,11 +295,12 @@
     }
     drawOverlay();
 
-    // Resize canvas on video meta load
+    // Resize canvas on video metadata load
     video.addEventListener('loadedmetadata', ()=>{ canvas.width = video.videoWidth || 640; canvas.height = video.videoHeight || 480; });
 
     // Expose debug helpers
     window.ChechIT = { startCamera, setMirror: m => { mirrored = !!m; video.style.transform = mirrored ? 'scaleX(-1)' : 'scaleX(1)'; } };
+
   </script>
 </body>
 </html>
