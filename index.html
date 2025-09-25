@@ -74,8 +74,6 @@
       align-items: center;
       cursor: grab;
       transition: transform 0.1s ease-out;
-      /* Add some subtle shadow for 3D vibe */
-      box-shadow: 0 10px 20px rgba(0,0,0,0.15);
     }
     .rotator img {
       max-width: 100%;
@@ -85,7 +83,6 @@
       border-radius: 12px;
       backface-visibility: hidden;
       transform-style: preserve-3d;
-      transition: transform 0.1s ease-out;
     }
     .rotator:active {
       cursor: grabbing;
@@ -165,8 +162,6 @@
           offCtx.drawImage(uploadedImage, 0, 0, offCanvas.width, offCanvas.height);
           shirt.src = offCanvas.toDataURL("image/png");
           staticPreview.src = shirt.src; // Show static preview
-          staticPreview.style.transform = 'rotateY(0deg)'; // Reset rotation on new image
-          rotationY = 0;
         };
         uploadedImage.onerror = () => {
           shirtLoaded = false;
@@ -203,7 +198,7 @@
         return;
       }
 
-      // Draw video mirrored to match videoElement's mirrored CSS
+      // Mirror the video frame on canvas (to match mirrored video element)
       ctx.save();
       ctx.scale(-1, 1); // horizontal flip
       ctx.drawImage(results.image, -canvasElement.width, 0, canvasElement.width, canvasElement.height);
@@ -214,11 +209,18 @@
         const w = canvasElement.width;
         const h = canvasElement.height;
 
-        // Use landmarks as is (no flip) because you want live pose mapping unchanged
-        const leftShoulder = lm[11];
-        const rightShoulder = lm[12];
-        const leftHip = lm[23];
-        const rightHip = lm[24];
+        // Flip landmarks horizontally to match mirrored video
+        const flippedLm = lm.map(point => ({
+          x: 1 - point.x,
+          y: point.y,
+          z: point.z,
+          visibility: point.visibility,
+        }));
+
+        const leftShoulder = flippedLm[11];
+        const rightShoulder = flippedLm[12];
+        const leftHip = flippedLm[23];
+        const rightHip = flippedLm[24];
 
         if (!leftShoulder || !rightShoulder || !leftHip || !rightHip) {
           console.warn("Missing key landmarks for shirt placement");
@@ -253,7 +255,7 @@
     });
     camera.start();
 
-    // 3D rotator controls for static preview (CSS rotateY)
+    // 3D rotator controls for static preview
     rotator.addEventListener('mousedown', (e) => {
       isDragging = true;
       startX = e.clientX;
