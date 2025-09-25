@@ -32,19 +32,30 @@
       height: 480px;
       margin: auto;
     }
-    video, canvas {
+    video {
       position: absolute;
       top: 0;
       left: 0;
       width: 640px;
       height: 480px;
       border-radius: 12px;
+      transform: scaleX(-1);
+      z-index: 1;
       object-fit: cover;
     }
-    video { z-index: 1; transform: scaleX(-1); }
-    canvas { z-index: 2; pointer-events: none; }
-
-    input[type="file"] { margin-top: 10px; }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 640px;
+      height: 480px;
+      border-radius: 12px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    input[type="file"] {
+      margin-top: 10px;
+    }
     .static-shirt {
       margin-top: 1rem;
       perspective: 800px;
@@ -75,7 +86,9 @@
       backface-visibility: hidden;
       transform-style: preserve-3d;
     }
-    .rotator:active { cursor: grabbing; }
+    .rotator:active {
+      cursor: grabbing;
+    }
   </style>
 </head>
 <body>
@@ -119,75 +132,61 @@
     const canvas = document.getElementById('overlayCanvas');
     const ctx = canvas.getContext('2d');
 
-    let shirtImg = new Image(), watchImg = new Image(), gogglesImg = new Image();
-    let shirtLoaded=false, watchLoaded=false, gogglesLoaded=false;
+    // Overlays
+    let shirtImg = new Image();
+    let watchImg = new Image();
+    let gogglesImg = new Image();
+    let shirtLoaded = false, watchLoaded = false, gogglesLoaded = false;
 
-    const setPreview = (img, targetId) => {
-      img.onload = () => {
-        if(targetId) document.getElementById(targetId).src = img.src;
-      };
-    };
+    function loadImage(input, imageObj, flagVar) {
+      input.addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          imageObj.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+      imageObj.onload = () => { window[flagVar] = true; };
+    }
 
-    document.getElementById('uploadShirt').addEventListener('change', e => {
-      const file = e.target.files[0]; if(!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => { shirtImg.src = ev.target.result; shirtLoaded=true; setPreview(shirtImg,'staticPreview'); };
-      reader.readAsDataURL(file);
-    });
-
-    document.getElementById('uploadWatch').addEventListener('change', e => {
-      const file = e.target.files[0]; if(!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => { watchImg.src = ev.target.result; watchLoaded=true; setPreview(watchImg,'staticPreview'); };
-      reader.readAsDataURL(file);
-    });
-
-    document.getElementById('uploadGoggles').addEventListener('change', e => {
-      const file = e.target.files[0]; if(!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => { gogglesImg.src = ev.target.result; gogglesLoaded=true; setPreview(gogglesImg,'staticPreview'); };
-      reader.readAsDataURL(file);
-    });
+    loadImage(document.getElementById('uploadShirt'), shirtImg, 'shirtLoaded');
+    loadImage(document.getElementById('uploadWatch'), watchImg, 'watchLoaded');
+    loadImage(document.getElementById('uploadGoggles'), gogglesImg, 'gogglesLoaded');
 
     let latestResults = null;
 
     const pose = new Pose({
-      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
     });
     pose.setOptions({
-      modelComplexity:1,
-      smoothLandmarks:true,
-      enableSegmentation:false,
-      minDetectionConfidence:0.5,
-      minTrackingConfidence:0.5
+      modelComplexity: 1,
+      smoothLandmarks: true,
+      enableSegmentation: false,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5,
     });
-    pose.onResults(results => { latestResults = results; });
+    pose.onResults((results) => { latestResults = results; });
 
-    async function startCamera(){
-      try{
-        const stream = await navigator.mediaDevices.getUserMedia({video:{width:640,height:480}, audio:false});
-        video.srcObject = stream;
-        const cameraInterval = new Camera(video,{onFrame:async()=>{await pose.send({image:video});}, width:640,height:480});
-        cameraInterval.start();
-      }catch(err){
-        console.error("Camera error:", err);
-        alert("Cannot access camera: "+err.message);
-      }
-    }
-    startCamera();
+    const camera = new Camera(video, {
+      onFrame: async () => await pose.send({ image: video }),
+      width: 640,
+      height: 480,
+    });
+    camera.start().catch(err => alert("Cannot access camera: " + err.message));
 
     function animate() {
       requestAnimationFrame(animate);
 
-      if (!latestResults || !latestResults.poseLandmarks || !latestResults.image) {
-        // Show mirrored video while pose is not ready
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.save();
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
-        ctx.restore();
-        return;
-      }
+      // Draw video
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+      ctx.restore();
+
+      if (!latestResults || !latestResults.poseLandmarks) return;
 
       const lm = latestResults.poseLandmarks.map(p => ({
         x: 1 - p.x,
@@ -196,59 +195,55 @@
         visibility: p.visibility
       }));
 
-      const w = canvas.width, h = canvas.height;
+      const leftShoulder = lm[11];
+      const rightShoulder = lm[12];
+      const leftHip = lm[23];
+      const rightHip = lm[24];
+      const leftWrist = lm[15];
+      const rightWrist = lm[16];
+      const leftEye = lm[33];
+      const rightEye = lm[263];
 
-      ctx.clearRect(0, 0, w, h);
-      ctx.save();
-      ctx.scale(-1, 1);
-      ctx.drawImage(latestResults.image, -w, 0, w, h);
-      ctx.restore();
-
-      const leftShoulder = lm[11], rightShoulder = lm[12];
-      const leftHip = lm[23], rightHip = lm[24];
-      const leftEye = lm[33], rightEye = lm[263];
-      const leftWrist = lm[15], rightWrist = lm[16];
+      const w = canvas.width;
+      const h = canvas.height;
 
       // Shirt overlay
       if (shirtLoaded && leftShoulder && rightShoulder && leftHip && rightHip) {
-        const cx = (leftShoulder.x + rightShoulder.x)/2 * w;
-        const cy = (leftShoulder.y + rightShoulder.y)/2 * h;
+        const centerX = (leftShoulder.x + rightShoulder.x)/2 * w;
+        const centerY = (leftShoulder.y + rightShoulder.y)/2 * h;
         const hipY = (leftHip.y + rightHip.y)/2 * h;
-        const torsoH = hipY - cy;
+        const torsoH = hipY - centerY;
         const dx = (rightShoulder.x - leftShoulder.x) * w;
         const dy = (rightShoulder.y - leftShoulder.y) * h;
         const angle = Math.atan2(dy, dx);
-        const shirtW = Math.sqrt(dx*dx + dy*dy)*1.5;
-        const shirtH = torsoH*2.0;
-        const shirtY = cy + torsoH*0.1;
+        const shirtW = Math.sqrt(dx*dx + dy*dy) * 1.5;
+        const shirtH = torsoH * 2.0;
+
         ctx.save();
-        ctx.translate(cx, shirtY + shirtH/2);
+        ctx.translate(centerX, centerY + torsoH/2);
         ctx.rotate(angle);
         ctx.drawImage(shirtImg, -shirtW/2, -shirtH/2, shirtW, shirtH);
         ctx.restore();
       }
 
-      // Watches overlay
-      if (watchLoaded) {
-        [leftWrist, rightWrist].forEach(wrist => {
-          if(wrist){
-            const wx = wrist.x*w, wy = wrist.y*h;
-            const watchW = w*0.15;
-            const watchH = watchW*(watchImg.height/watchImg.width);
-            ctx.save();
-            ctx.translate(wx, wy);
-            ctx.drawImage(watchImg, -watchW/2, -watchH/2, watchW, watchH);
-            ctx.restore();
-          }
-        });
+      // Watch overlay
+      if (watchLoaded && rightWrist) {
+        const wx = rightWrist.x * w;
+        const wy = rightWrist.y * h;
+        const watchW = w * 0.12;
+        const watchH = watchW * (watchImg.height / watchImg.width);
+        ctx.save();
+        ctx.translate(wx, wy);
+        ctx.drawImage(watchImg, -watchW/2, -watchH/2, watchW, watchH);
+        ctx.restore();
       }
 
       // Goggles overlay
       if (gogglesLoaded && leftEye && rightEye) {
         const gx = (leftEye.x + rightEye.x)/2 * w;
         const gy = (leftEye.y + rightEye.y)/2 * h;
-        const gW = Math.hypot(rightEye.x-leftEye.x, rightEye.y-leftEye.y)*w*2;
-        const gH = gW*(gogglesImg.height/gogglesImg.width);
+        const gW = Math.abs(rightEye.x - leftEye.x) * w * 2.5;
+        const gH = gW * (gogglesImg.height / gogglesImg.width);
         ctx.save();
         ctx.translate(gx, gy);
         ctx.drawImage(gogglesImg, -gW/2, -gH/2, gW, gH);
