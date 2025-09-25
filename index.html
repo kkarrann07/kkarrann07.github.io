@@ -39,7 +39,6 @@
       width: 640px;
       height: 480px;
       border-radius: 12px;
-      /* Mirror video for natural selfie */
       transform: scaleX(-1);
       z-index: 1;
       object-fit: cover;
@@ -51,8 +50,7 @@
       width: 640px;
       height: 480px;
       border-radius: 12px;
-      z-index: 2; /* on top */
-      /* Don't mirror canvas, we mirror image while drawing */
+      z-index: 2;
     }
     input[type="file"] {
       margin-top: 10px;
@@ -95,14 +93,12 @@
 <body>
   <header>👗 ChechIT – AI Fashion Try-On</header>
 
-  <!-- AI Search -->
   <section>
     <h2>🔍 AI Fashion Search</h2>
     <p>Use our Hugging Face-powered model to search clothing with AI embeddings.</p>
     <iframe src="https://kkarrann07-Fashion.hf.space" width="100%" height="650"></iframe>
   </section>
 
-  <!-- Upload -->
   <section>
     <h2>🖼️ Upload Your Clothing Image</h2>
     <p>Choose a shirt/top image (preferably transparent PNG).</p>
@@ -115,7 +111,6 @@
     </div>
   </section>
 
-  <!-- AR Try-On -->
   <section>
     <h2>🕶️ AR Clothing Try-On</h2>
     <p>Turn on your camera. Your uploaded shirt will overlay your body in real time.</p>
@@ -140,12 +135,10 @@
     let shirt = new Image();
     let shirtLoaded = false;
 
-    // Variables for rotator 3D effect
     let rotationY = 0;
     let isDragging = false;
     let startX = 0;
 
-    // Handle image upload & resize
     document.getElementById('upload').addEventListener('change', (event) => {
       const file = event.target.files[0];
       if (!file) return;
@@ -154,7 +147,6 @@
       reader.onload = function (e) {
         const uploadedImage = new Image();
         uploadedImage.onload = () => {
-          // Resize image if too big
           const maxSize = 512;
           const ratio = Math.min(maxSize / uploadedImage.width, maxSize / uploadedImage.height, 1);
           const offCanvas = document.createElement('canvas');
@@ -164,7 +156,7 @@
           offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
           offCtx.drawImage(uploadedImage, 0, 0, offCanvas.width, offCanvas.height);
           shirt.src = offCanvas.toDataURL("image/png");
-          staticPreview.src = shirt.src; // Show static preview
+          staticPreview.src = shirt.src;
         };
         uploadedImage.onerror = () => {
           shirtLoaded = false;
@@ -179,7 +171,6 @@
       shirtLoaded = true;
     };
 
-    // MediaPipe Pose setup
     const pose = new Pose({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`,
     });
@@ -192,10 +183,10 @@
       minTrackingConfidence: 0.5,
     });
 
+    // ✅ UPDATED SECTION STARTS HERE
     pose.onResults((results) => {
       ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-      // Mirror the image on canvas to match mirrored video element
       ctx.save();
       ctx.scale(-1, 1);
       ctx.drawImage(results.image, -canvasElement.width, 0, canvasElement.width, canvasElement.height);
@@ -206,38 +197,45 @@
         const w = canvasElement.width;
         const h = canvasElement.height;
 
-        // Flip landmarks horizontally to match mirrored video
-        const flippedLm = lm.map((point) => ({
-          x: 1 - point.x,
-          y: point.y,
-          z: point.z,
-          visibility: point.visibility,
+        const flipped = lm.map(p => ({
+          x: 1 - p.x,
+          y: p.y,
+          z: p.z,
+          visibility: p.visibility
         }));
 
-        const leftShoulder = flippedLm[11];
-        const rightShoulder = flippedLm[12];
-        const leftHip = flippedLm[23];
-        const rightHip = flippedLm[24];
+        const leftShoulder = flipped[11];
+        const rightShoulder = flipped[12];
+        const leftHip = flipped[23];
+        const rightHip = flipped[24];
 
-        const shoulderCenterX = ((leftShoulder.x + rightShoulder.x) / 2) * w;
-        const shoulderCenterY = ((leftShoulder.y + rightShoulder.y) / 2) * h;
+        if (leftShoulder && rightShoulder && leftHip && rightHip) {
+          const centerX = ((leftShoulder.x + rightShoulder.x) / 2) * w;
+          const centerY = ((leftShoulder.y + rightShoulder.y) / 2) * h;
 
-        const hipCenterY = ((leftHip.y + rightHip.y) / 2) * h;
-        const torsoHeight = hipCenterY - shoulderCenterY;
+          const hipY = ((leftHip.y + rightHip.y) / 2) * h;
+          const torsoHeight = hipY - centerY;
 
-        const shoulderWidth = Math.abs(rightShoulder.x - leftShoulder.x) * w;
+          const shoulderDX = (rightShoulder.x - leftShoulder.x) * w;
+          const shoulderDY = (rightShoulder.y - leftShoulder.y) * h;
+          const shoulderDist = Math.sqrt(shoulderDX ** 2 + shoulderDY ** 2);
+          const angle = Math.atan2(shoulderDY, shoulderDX);
 
-        const shirtWidth = shoulderWidth * 1.6;
-        const shirtHeight = torsoHeight * 2.1;
+          const shirtWidth = shoulderDist * 1.5;
+          const shirtHeight = torsoHeight * 2.1;
 
-        const shirtX = shoulderCenterX - shirtWidth / 2;
-        const shirtY = shoulderCenterY + torsoHeight * 0.05;
+          const shirtY = centerY + torsoHeight * 0.05;
 
-        ctx.drawImage(shirt, shirtX, shirtY, shirtWidth, shirtHeight);
+          ctx.save();
+          ctx.translate(centerX, shirtY + shirtHeight / 2);
+          ctx.rotate(angle);
+          ctx.drawImage(shirt, -shirtWidth / 2, -shirtHeight / 2, shirtWidth, shirtHeight);
+          ctx.restore();
+        }
       }
     });
+    // ✅ UPDATED SECTION ENDS HERE
 
-    // Start camera (mirrored visually with CSS transform)
     const camera = new Camera(videoElement, {
       onFrame: async () => {
         await pose.send({ image: videoElement });
@@ -247,7 +245,6 @@
     });
     camera.start();
 
-    // 3D rotator controls for static preview
     rotator.addEventListener('mousedown', (e) => {
       isDragging = true;
       startX = e.clientX;
@@ -257,44 +254,4 @@
       isDragging = false;
       rotator.style.cursor = 'grab';
     });
-    rotator.addEventListener('mouseleave', () => {
-      isDragging = false;
-      rotator.style.cursor = 'grab';
-    });
-    rotator.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      const deltaX = e.clientX - startX;
-      startX = e.clientX;
-
-      rotationY += deltaX * 0.5;
-      rotationY %= 360;
-
-      staticPreview.style.transform = `rotateY(${rotationY}deg)`;
-    });
-
-    // Touch events for mobile
-    rotator.addEventListener('touchstart', (e) => {
-      isDragging = true;
-      startX = e.touches[0].clientX;
-      rotator.style.cursor = 'grabbing';
-    });
-    rotator.addEventListener('touchend', () => {
-      isDragging = false;
-      rotator.style.cursor = 'grab';
-    });
-    rotator.addEventListener('touchcancel', () => {
-      isDragging = false;
-      rotator.style.cursor = 'grab';
-    });
-    rotator.addEventListener('touchmove', (e) => {
-      if (!isDragging) return;
-      const deltaX = e.touches[0].clientX - startX;
-      startX = e.touches[0].clientX;
-
-      rotationY += deltaX * 0.5;
-      rotationY %= 360;
-      staticPreview.style.transform = `rotateY(${rotationY}deg)`;
-    });
-  </script>
-</body>
-</html>
+    rotator.addEventListener('mouseleave',
