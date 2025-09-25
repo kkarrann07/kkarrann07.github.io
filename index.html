@@ -1,169 +1,297 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ChechIT – AR Try-On (OpenCV + Tracking)</title>
-<style>
-  :root{--bg:#f7f7f7;--card:#fff;--accent:#222;--muted:#666;--radius:12px;--max-width:1100px}
-  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:#111}
-  .container{max-width:var(--max-width);margin:1.2rem auto;padding:1rem}
-  header{background:var(--accent);color:#fff;padding:1rem;border-radius:8px;font-weight:700;display:flex;align-items:center;gap:12px;margin-bottom:1rem}
-  .card{background:var(--card);border-radius:12px;padding:1rem;box-shadow:0 6px 18px rgba(0,0,0,0.06);overflow:hidden;margin-bottom:1rem}
-  video,canvas{width:640px;height:480px;border-radius:var(--radius);background:#000;display:block;margin-bottom:1rem}
-  .rotator{height:220px;border-radius:var(--radius);border:1px solid #e3e3e3;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fafafa;cursor:grab;touch-action:none;margin-bottom:.5rem}
-  .rotator img{max-width:100%;max-height:100%;pointer-events:none;backface-visibility:hidden;transform-style:preserve-3d;transition:transform .12s linear}
-  button{background:var(--accent);color:#fff;padding:.45rem .7rem;border-radius:8px;border:0;font-size:.95rem;cursor:pointer;margin-right:5px}
-  button.secondary{background:#fff;color:var(--accent);border:1px solid #ddd}
-</style>
+  <meta charset="UTF-8" />
+  <title>ChechIT – AR Try‑On (Pose + Overlays)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+    header {
+      background: #222;
+      color: #fff;
+      padding: 1rem;
+      font-size: 1.4rem;
+      font-weight: bold;
+    }
+    section {
+      padding: 2rem;
+    }
+    iframe {
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .ar-container {
+      position: relative;
+      width: 640px;
+      height: 480px;
+      margin: auto;
+    }
+    video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 640px;
+      height: 480px;
+      border-radius: 12px;
+      transform: scaleX(-1);
+      z-index: 1;
+      object-fit: cover;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 640px;
+      height: 480px;
+      border-radius: 12px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    input[type="file"] {
+      margin-top: 10px;
+    }
+    .static-shirt {
+      margin-top: 1rem;
+      perspective: 800px;
+      width: 320px;
+      margin-left: auto;
+      margin-right: auto;
+      user-select: none;
+    }
+    .rotator {
+      width: 100%;
+      height: 400px;
+      border-radius: 12px;
+      border: 1px solid #ccc;
+      overflow: hidden;
+      background: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: grab;
+      transition: transform 0.1s ease-out;
+    }
+    .rotator img {
+      max-width: 100%;
+      max-height: 100%;
+      pointer-events: none;
+      user-select: none;
+      border-radius: 12px;
+      backface-visibility: hidden;
+      transform-style: preserve-3d;
+    }
+    .rotator:active {
+      cursor: grabbing;
+    }
+  </style>
 </head>
 <body>
-<div class="container">
-  <header>👗 ChechIT – AR Try-On</header>
+  <header>👗 ChechIT – AR Try‑On</header>
 
-  <div class="card">
+  <section>
+    <h2>🔍 AI Fashion Search</h2>
+    <p>Use our Hugging Face-powered model to search clothing with AI embeddings.</p>
+    <iframe src="https://kkarrann07-Fashion.hf.space" width="100%" height="650"></iframe>
+  </section>
+
+  <section>
     <h2>🖼 Upload Overlays</h2>
-    <label>Shirt (PNG)</label><input id="uploadShirt" type="file" accept="image/png,image/webp"><br>
-    <label>Watch (PNG)</label><input id="uploadWatch" type="file" accept="image/png,image/webp"><br>
-    <label>Goggles (PNG)</label><input id="uploadGoggles" type="file" accept="image/png,image/webp"><br>
-    <div class="rotator" id="rotator"><img id="staticPreview" src="" alt="preview"></div>
-    <button id="resetPreview" class="secondary">Reset</button>
-    <button id="downloadPreview">Download</button>
-  </div>
+    <p>Transparent PNG overlays for shirt, watch, goggles.</p>
+    <input type="file" id="uploadShirt" accept="image/png" /> Shirt <br />
+    <input type="file" id="uploadWatch" accept="image/png" /> Watch <br />
+    <input type="file" id="uploadGoggles" accept="image/png" /> Goggles <br />
+    <div class="static-shirt">
+      <p>🖼 Preview (3D Rotator):</p>
+      <div class="rotator" id="rotator">
+        <img id="staticPreview" src="" alt="Overlay preview" />
+      </div>
+    </div>
+  </section>
 
-  <div class="card">
-    <h2>🕶 AR Try-On (OpenCV + Tracking)</h2>
-    <video id="video" autoplay muted></video>
-    <canvas id="overlayCanvas"></canvas>
-    <button id="screenshotBtn">Screenshot</button>
-  </div>
-</div>
+  <section>
+    <h2>🕶 AR Try-On</h2>
+    <p>Camera + Pose Overlay: shirt, watch, goggles.</p>
+    <div class="ar-container">
+      <video id="video" autoplay playsinline></video>
+      <canvas id="overlayCanvas" width="640" height="480"></canvas>
+    </div>
+  </section>
 
-<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
-<script>
-let shirtImg = new Image(), watchImg = new Image(), gogglesImg = new Image();
-let shirtLoaded=false, watchLoaded=false, gogglesLoaded=false;
+  <!-- MediaPipe libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
 
-const video = document.getElementById('video');
-const canvas = document.getElementById('overlayCanvas');
-const ctx = canvas.getContext('2d');
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('overlayCanvas');
+    const ctx = canvas.getContext('2d');
 
-const staticPreview = document.getElementById('staticPreview');
-const rotator = document.getElementById('rotator');
-const resetPreview = document.getElementById('resetPreview');
-const downloadPreview = document.getElementById('downloadPreview');
-const screenshotBtn = document.getElementById('screenshotBtn');
+    // Overlays
+    let shirtImg = new Image();
+    let watchImg = new Image();
+    let gogglesImg = new Image();
+    let shirtLoaded = false, watchLoaded = false, gogglesLoaded = false;
 
-// --- Overlay uploads ---
-function handleFileInput(file,img){
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e => { img.src = e.target.result; staticPreview.src = e.target.result; };
-  reader.readAsDataURL(file);
-}
+    document.getElementById('uploadShirt').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        shirtImg.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+    shirtImg.onload = () => { shirtLoaded = true; };
 
-document.getElementById('uploadShirt').addEventListener('change', e=>handleFileInput(e.target.files[0], shirtImg));
-document.getElementById('uploadWatch').addEventListener('change', e=>handleFileInput(e.target.files[0], watchImg));
-document.getElementById('uploadGoggles').addEventListener('change', e=>handleFileInput(e.target.files[0], gogglesImg));
+    document.getElementById('uploadWatch').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        watchImg.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+    watchImg.onload = () => { watchLoaded = true; };
 
-shirtImg.onload = ()=>shirtLoaded=true;
-watchImg.onload = ()=>watchLoaded=true;
-gogglesImg.onload = ()=>gogglesLoaded=true;
+    document.getElementById('uploadGoggles').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        gogglesImg.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+    gogglesImg.onload = () => { gogglesLoaded = true; };
 
-// --- Rotator ---
-let dragging=false, startX=0, curRot=0;
-rotator.addEventListener('pointerdown', e=>{ dragging=true; rotator.setPointerCapture(e.pointerId); startX=e.clientX; });
-rotator.addEventListener('pointermove', e=>{ 
-  if(!dragging) return; 
-  const dx = e.clientX - startX; 
-  startX = e.clientX; 
-  curRot += dx*0.6; 
-  staticPreview.style.transform = `rotateY(${curRot}deg)`; 
-});
-rotator.addEventListener('pointerup', e=>{ dragging=false; try{rotator.releasePointerCapture(e.pointerId);}catch{} });
-rotator.addEventListener('pointerleave', ()=>dragging=false);
+    let latestResults = null;
 
-resetPreview.addEventListener('click', ()=>{ staticPreview.src=''; staticPreview.style.transform='rotateY(0deg)'; });
-downloadPreview.addEventListener('click', ()=>{ 
-  if(!staticPreview.src) return alert('No preview'); 
-  const a=document.createElement('a'); 
-  a.href=staticPreview.src; 
-  a.download='preview.png'; 
-  a.click(); 
-});
+    const pose = new Pose({
+      locateFile: (file) => https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}
+    });
+    pose.setOptions({
+      modelComplexity: 1,
+      smoothLandmarks: true,
+      enableSegmentation: false,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5,
+    });
+    pose.onResults((results) => {
+      latestResults = results;
+    });
 
-screenshotBtn.addEventListener('click', ()=>{
-  const tmp = document.createElement('canvas');
-  tmp.width = canvas.width; tmp.height = canvas.height;
-  tmp.getContext('2d').drawImage(canvas,0,0);
-  window.open(tmp.toDataURL('image/png'),'_blank');
-});
+    const camera = new Camera(video, {
+      onFrame: async () => {
+        await pose.send({ image: video });
+      },
+      width: 640,
+      height: 480,
+    });
+    camera.start().catch(err => {
+      console.error("Camera start error:", err);
+      alert("Cannot access camera: " + err.message);
+    });
 
-// --- Webcam start ---
-function startWebcam() {
-  navigator.mediaDevices.getUserMedia({video:true,audio:false})
-  .then(stream => { 
-    video.srcObject = stream; 
-    video.play(); 
-    requestAnimationFrame(processFrame); 
-  })
-  .catch(err => alert('Camera error: '+err.message));
-}
+    function animate() {
+      requestAnimationFrame(animate);
 
-// --- OpenCV face/torso tracking ---
-let faceCascade=null, bodyCascade=null;
-cv['onRuntimeInitialized']=()=>{
-  faceCascade = new cv.CascadeClassifier();
-  bodyCascade = new cv.CascadeClassifier();
-  // Load pre-trained cascades from OpenCV repo
-  faceCascade.load('https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/haarcascade_frontalface_default.xml');
-  bodyCascade.load('https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/haarcascade_fullbody.xml');
-};
+      if (!latestResults) {
+        // Just show mirrored video
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+        ctx.restore();
+        return;
+      }
 
-function processFrame(){
-  if(video.readyState !== video.HAVE_ENOUGH_DATA){ requestAnimationFrame(processFrame); return; }
+      // Draw mirrored video
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.drawImage(latestResults.image, -canvas.width, 0, canvas.width, canvas.height);
+      ctx.restore();
 
-  const w = canvas.width = video.videoWidth;
-  const h = canvas.height = video.videoHeight;
-  ctx.clearRect(0,0,w,h);
-  ctx.drawImage(video,0,0,w,h);
+      const lm = latestResults.poseLandmarks.map(p => ({
+        x: 1 - p.x,
+        y: p.y,
+        z: p.z,
+        visibility: p.visibility
+      }));
 
-  try{
-    let src = cv.imread(video);
-    let gray = new cv.Mat();
-    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+      const leftShoulder = lm[11];
+      const rightShoulder = lm[12];
+      const leftHip = lm[23];
+      const rightHip = lm[24];
+      const nose = lm[0];  // use nose for goggles approx
 
-    // Detect faces
-    let faces = new cv.RectVector();
-    let bodies = new cv.RectVector();
-    if(faceCascade) faceCascade.detectMultiScale(gray, faces, 1.1, 3, 0);
-    if(bodyCascade) bodyCascade.detectMultiScale(gray, bodies, 1.05, 3, 0);
+      if (leftShoulder && rightShoulder && leftHip && rightHip) {
+        const w = canvas.width;
+        const h = canvas.height;
 
-    // Draw overlays
-    if(shirtLoaded && bodies.size()>0){
-      let body = bodies.get(0);
-      ctx.drawImage(shirtImg, body.x, body.y, body.width, body.height);
+        // Shirt overlay
+        if (shirtLoaded) {
+          const centerX = ((leftShoulder.x + rightShoulder.x) / 2) * w;
+          const centerY = ((leftShoulder.y + rightShoulder.y) / 2) * h;
+
+          const hipY = ((leftHip.y + rightHip.y) / 2) * h;
+          const torsoH = hipY - centerY;
+
+          const dx = (rightShoulder.x - leftShoulder.x) * w;
+          const dy = (rightShoulder.y - leftShoulder.y) * h;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const angle = Math.atan2(dy, dx);
+
+          const shirtW = dist * 1.5;
+          const shirtH = torsoH * 2.1;
+          const shirtY = centerY + torsoH * 0.05;
+
+          ctx.save();
+          ctx.translate(centerX, shirtY + shirtH / 2);
+          ctx.rotate(angle);
+          ctx.drawImage(shirtImg, -shirtW/2, -shirtH/2, shirtW, shirtH);
+          ctx.restore();
+        }
+
+        // Watch overlay: approximate near wrist position
+        if (watchLoaded) {
+          // choose right wrist landmark (lm[16]) as example
+          const wrist = lm[16];
+          if (wrist) {
+            const wx = wrist.x * w;
+            const wy = wrist.y * h;
+            const watchW = w * 0.2;
+            const watchH = watchW * (watchImg.height / watchImg.width);
+            ctx.save();
+            ctx.translate(wx, wy);
+            ctx.drawImage(watchImg, -watchW/2, -watchH/2, watchW, watchH);
+            ctx.restore();
+          }
+        }
+
+        // Goggles overlay
+        if (gogglesLoaded && nose) {
+          const gx = nose.x * w;
+          const gy = nose.y * h;
+          const gW = (rightShoulder.x - leftShoulder.x) * w * 0.6;
+          const gH = gW * (gogglesImg.height / gogglesImg.width);
+
+          ctx.save();
+          ctx.translate(gx, gy);
+          ctx.drawImage(gogglesImg, -gW/2, -gH/2, gW, gH);
+          ctx.restore();
+        }
+      }
     }
 
-    if(gogglesLoaded && faces.size()>0){
-      let face = faces.get(0);
-      ctx.drawImage(gogglesImg, face.x, face.y, face.width, face.height*0.6);
-    }
-
-    if(watchLoaded && bodies.size()>0){
-      let body = bodies.get(0);
-      ctx.drawImage(watchImg, body.x+body.width*0.75, body.y+body.height*0.8, body.width*0.15, body.height*0.15);
-    }
-
-    src.delete(); gray.delete(); faces.delete(); bodies.delete();
-  }catch(e){
-    console.error(e);
-  }
-
-  requestAnimationFrame(processFrame);
-}
-
-startWebcam();
-</script>
+    animate();
+  </script>
 </body>
 </html>
