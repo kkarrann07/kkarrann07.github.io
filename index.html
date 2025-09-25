@@ -1,137 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
-head>
-  <meta charset="UTF-8" />
-  <title>ChechIT – AR Try‑On with 3D Garment Models</title>
+<head>
+  <meta charset="UTF-8">
+  <title>Webcam + MediaPipe Pose Test</title>
   <style>
-    body, html {
-      margin: 0; padding: 0;
-      width: 100%; height: 100%;
-      background: #f7f7f7;
-      overflow: hidden;
-      font-family: Arial, sans-serif;
-    }
-    header {
-      background: #222; color: white;
-      padding: 1rem; text-align: center;
-    }
-    .ar-container {
-      position: relative;
+    video, canvas {
       width: 640px;
       height: 480px;
-      margin: 20px auto;
+      border: 1px solid #000;
     }
-    video {
+    .container {
+      position: relative;
+    }
+    canvas {
       position: absolute;
-      top: 0; left: 0;
-      width: 640px; height: 480px;
-      transform: scaleX(-1);
-      z-index: 1;
-      object-fit: cover;
-    }
-    canvas#three-canvas {
-      position: absolute;
-      top: 0; left: 0;
-      width: 640px; height: 480px;
-      z-index: 2;
-      pointer-events: none;
-    }
-    .static-shirt {
-      perspective: 800px;
-      width: 300px;
-      margin: 20px auto;
-      user-select: none;
-    }
-    .rotator {
-      width: 100%; height: 400px;
-      border: 1px solid #ccc;
-      border-radius: 12px; background: #fff;
-      display: flex; justify-content: center; align-items: center;
-      cursor: grab; box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-    }
-    .rotator img {
-      max-width: 100%; max-height: 100%;
-      transform-style: preserve-3d;
-      backface-visibility: hidden;
-      pointer-events: none;
-      user-select: none;
-      transition: transform 0.1s ease-out;
-    }
-    .rotator:active {
-      cursor: grabbing;
+      top: 0;
+      left: 0;
     }
   </style>
 </head>
 <body>
-  <header>👗 ChechIT – AR Try‑On with 3D Models</header>
-
-  <div class="ar-container">
+  <h2>Camera & Pose Test</h2>
+  <div class="container">
     <video id="video" autoplay playsinline></video>
-    <canvas id="three-canvas"></canvas>
+    <canvas id="canvas" width="640" height="480"></canvas>
   </div>
 
-  <div class="static-shirt">
-    <input type="file" id="uploadModel" accept=".glb,.gltf" />
-    <p>Preview Model (Drag to rotate):</p>
-    <div class="rotator" id="rotator">
-      <img id="staticPreview" src="" alt="3D Preview (image fallback)" />
-    </div>
-  </div>
-
-  <!-- Dependencies -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/examples/js/loaders/GLTFLoader.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
-
   <script>
-    const videoElem = document.getElementById('video');
-    const canvas3d = document.getElementById('three-canvas');
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
 
-    // Three.js setup
-    const scene = new THREE.Scene();
-    const camera3d = new THREE.PerspectiveCamera(45, 640 / 480, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ canvas: canvas3d, alpha: true });
-    renderer.setSize(640, 480);
-    renderer.setPixelRatio(window.devicePixelRatio);
-
-    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
-    scene.add(ambient);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    dirLight.position.set(0, 1, 1);
-    scene.add(dirLight);
-
-    let shirtMesh = null;
-
-    // Load model from file input
-    document.getElementById('uploadModel').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(ev) {
-        const arrayBuffer = ev.target.result;
-        const loader = new THREE.GLTFLoader();
-        loader.parse(arrayBuffer, '', function(gltf) {
-          if (shirtMesh) {
-            scene.remove(shirtMesh);
-          }
-          shirtMesh = gltf.scene;
-          scene.add(shirtMesh);
-        }, function(error) {
-          console.error("Model parse error:", error);
-        });
-      };
-      reader.readAsArrayBuffer(file);
-    });
-
-    camera3d.position.set(0, 0, 5);
-    camera3d.lookAt(0, 0, 0);
-
-    // Pose detection setup
     const pose = new Pose({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`,
     });
+
     pose.setOptions({
       modelComplexity: 1,
       smoothLandmarks: true,
@@ -139,59 +44,38 @@ head>
       minDetectionConfidence: 0.5,
       minTrackingConfidence: 0.5,
     });
-    pose.onResults(onPose);
 
-    const cameraUtils = new CameraUtils.Camera(videoElem, {
-      onFrame: async () => { await pose.send({ image: videoElem }); },
+    pose.onResults((results) => {
+      // clear canvas
+      ctx.clearRect(0,0,canvas.width, canvas.height);
+      if (results.image) {
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(results.image, -canvas.width, 0, canvas.width, canvas.height);
+        ctx.restore();
+      }
+      if (results.poseLandmarks) {
+        // draw a simple dot on nose as test
+        const nose = results.poseLandmarks[0];
+        ctx.fillStyle = 'red';
+        ctx.beginPath();
+        ctx.arc( nose.x * canvas.width, nose.y * canvas.height, 5, 0, 2*Math.PI );
+        ctx.fill();
+      }
+    });
+
+    const camera = new Camera(video, {
+      onFrame: async () => {
+        await pose.send({image: video});
+      },
       width: 640,
       height: 480
     });
-    cameraUtils.start();
 
-    function onPose(results) {
-      // In 3D overlay, we just update shirtMesh transform and let renderer render
-      if (!shirtMesh || !results.poseLandmarks) {
-        renderer.render(scene, camera3d);
-        return;
-      }
-
-      // Flip landmarks horizontally
-      const lm = results.poseLandmarks.map(p => ({
-        x: 1 - p.x,
-        y: p.y,
-        z: p.z,
-        visibility: p.visibility
-      }));
-
-      const ls = lm[11];
-      const rs = lm[12];
-      const lh = lm[23];
-      const rh = lm[24];
-
-      if (ls && rs && lh && rh) {
-        const w = 640, h = 480;
-
-        // Compute center in normalised screen space, then map to 3D
-        const cx = ((ls.x + rs.x) / 2 * w) - w/2;
-        const cy = -(((ls.y + rs.y) / 2 * h) - h/2);
-
-        const hipY = ((lh.y + rh.y) / 2 * h);
-        const torsoHeight = hipY - ((ls.y + rs.y)/2 * h);
-
-        const dx = (rs.x - ls.x) * w;
-        const dy = (rs.y - ls.y) * h;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        const angle = Math.atan2(dy, dx);
-
-        // Map to 3D coordinates
-        shirtMesh.position.set(cx * 0.01, cy * 0.01, 0);
-        shirtMesh.scale.set(dist * 0.01, torsoHeight * 0.01, dist * 0.01);
-        shirtMesh.rotation.set(0, 0, angle);
-      }
-
-      renderer.render(scene, camera3d);
-    }
+    camera.start().catch((err) => {
+      console.error("Error starting camera:", err);
+      alert("Cannot access camera. Check permissions / HTTPS");
+    });
   </script>
 </body>
 </html>
