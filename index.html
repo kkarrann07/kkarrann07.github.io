@@ -3,9 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ChechIT – AR Try-On (Pose + Overlays)</title>
+  <title>ChechIT – AR Try-On (ready)</title>
   <style>
-    :root{--bg:#f7f7f7;--card:#fff;--accent:#222;--muted:#666;--radius:12px;--max-width:1100px}
+    :root{
+      --bg:#f7f7f7;--card:#fff;--accent:#222;--muted:#666;--radius:12px;--max-width:1100px
+    }
     html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:#111}
     .container{max-width:var(--max-width);margin:1.2rem auto;padding:1rem}
     header{background:var(--accent);color:#fff;padding:1rem;border-radius:8px;font-weight:700;display:flex;align-items:center;gap:12px}
@@ -21,6 +23,7 @@
     button{background:var(--accent);color:#fff;padding:.45rem .7rem;border-radius:8px;border:0;font-size:.95rem;cursor:pointer}
     button.secondary{background:#fff;color:var(--accent);border:1px solid #ddd}
     .muted{color:var(--muted);font-size:.9rem}
+    .small{font-size:.85rem;color:var(--muted)}
   </style>
 </head>
 <body>
@@ -29,11 +32,9 @@
 
     <div class="card">
       <h2>🔍 AI Fashion Search</h2>
-      <p>Use our Hugging Face-powered model to search clothing with AI embeddings.</p>
+      <p class="small">(Optional) Hugging Face space embedded below. Mixed-content console warnings from that space are unrelated to overlays.</p>
       <div class="iframe-wrap">
-        <!-- Mixed-content warnings below come from this HF space trying to load http://0.0.0.0 resources.
-             They are unrelated to the webcam. Remove the iframe if you want to eliminate those console warnings. -->
-        <iframe src="https://kkarrann07-Fashion.hf.space" title="AI Fashion Search" loading="lazy" style="width:100%;height:320px;border:0;border-radius:8px"></iframe>
+        <iframe src="https://kkarrann07-Fashion.hf.space" title="AI Fashion Search" loading="lazy" style="width:100%;height:280px;border:0;border-radius:8px"></iframe>
       </div>
     </div>
 
@@ -47,11 +48,14 @@
           <input id="uploadWatch" type="file" accept="image/png,image/webp" />
           <label>Goggles (PNG)</label>
           <input id="uploadGoggles" type="file" accept="image/png,image/webp" />
+
           <div style="margin-top:10px">
             <div class="rotator" id="rotator"><img id="staticPreview" src="" alt="preview" /></div>
-            <div style="display:flex;gap:.5rem;margin-top:.6rem">
+            <div style="display:flex;gap:.5rem;margin-top:.6rem;align-items:center">
               <button id="resetPreview" class="secondary">Reset</button>
               <button id="downloadPreview">Download</button>
+              <div style="flex:1"></div>
+              <div class="small">Tip: upload transparent PNGs (smaller than ~2MB) for best results.</div>
             </div>
           </div>
         </div>
@@ -69,12 +73,14 @@
           <div class="ar-container" id="arWrap">
             <div class="fallback card" id="fallback" role="status" aria-live="polite">
               <p><strong>Camera unavailable</strong></p>
-              <p class="muted">Check permissions or try on a compatible device.</p>
+              <p class="muted">Check permissions or try on a compatible device (Chrome/Edge/Firefox).</p>
             </div>
 
             <video id="video" autoplay playsinline muted></video>
-            <canvas id="overlayCanvas" width="640" height="480"></canvas>
+            <canvas id="overlayCanvas" width="640" height="480" aria-hidden="false"></canvas>
           </div>
+
+          <p class="small" style="margin-top:.6rem">Blue dots = pose landmarks. Red = shirt debug box. Green = wrist. Blue rect = goggles area.</p>
         </div>
       </div>
     </div>
@@ -85,7 +91,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
 
   <script>
-    // --- DOM refs ---
+    // DOM refs
     const video = document.getElementById('video');
     const canvas = document.getElementById('overlayCanvas');
     const ctx = canvas.getContext('2d', { alpha: true });
@@ -100,60 +106,81 @@
     const screenshotBtn = document.getElementById('screenshotBtn');
     const fallback = document.getElementById('fallback');
 
-    // --- overlays ---
+    // Default sample overlay images (transparent PNGs) — you can keep or replace these.
     const shirtImg = new Image();
     const watchImg = new Image();
     const gogglesImg = new Image();
-    let shirtLoaded=false, watchLoaded=false, gogglesLoaded=false;
+    // small transparent PNGs hosted so overlays appear immediately
+    shirtImg.src = 'https://i.ibb.co/6J5f7rV/tshirt.png';      // sample transparent tshirt
+    watchImg.src = 'https://i.ibb.co/6n4Z1sN/watch-sample.png'; // sample watch
+    gogglesImg.src = 'https://i.ibb.co/9Zr7t5P/goggles-sample.png'; // sample goggles
 
-    function handleFileInput(file, img){
-      if(!file) return;
+    let shirtLoaded = true, watchLoaded = true, gogglesLoaded = true;
+    // mark loaded once images fetched
+    shirtImg.onload = () => { shirtLoaded = true; console.log('default shirt loaded'); };
+    watchImg.onload = () => { watchLoaded = true; console.log('default watch loaded'); };
+    gogglesImg.onload = () => { gogglesLoaded = true; console.log('default goggles loaded'); };
+
+    // Upload handlers (replace defaults when user uploads)
+    function handleFileInput(file, imgObj, setLoadedFlag) {
+      if (!file) return;
       const r = new FileReader();
-      r.onload = e => { img.src = e.target.result; staticPreview.src = e.target.result; };
+      r.onload = (e) => {
+        imgObj.src = e.target.result;
+        staticPreview.src = e.target.result;
+        setLoadedFlag(true);
+        console.log('Uploaded overlay for', imgObj === shirtImg ? 'shirt' : imgObj === watchImg ? 'watch' : 'goggles');
+      };
       r.readAsDataURL(file);
     }
-    uploadShirt.addEventListener('change', e=>handleFileInput(e.target.files[0], shirtImg));
-    uploadWatch.addEventListener('change', e=>handleFileInput(e.target.files[0], watchImg));
-    uploadGoggles.addEventListener('change', e=>handleFileInput(e.target.files[0], gogglesImg));
-    shirtImg.onload = () => shirtLoaded = true;
-    watchImg.onload = () => watchLoaded = true;
-    gogglesImg.onload = () => gogglesLoaded = true;
-    resetPreview.addEventListener('click', ()=>{ staticPreview.src=''; staticPreview.style.transform='rotateY(0deg)'; });
-    downloadPreview.addEventListener('click', ()=>{ if(!staticPreview.src) return alert('No preview'); const a=document.createElement('a'); a.href=staticPreview.src; a.download='preview.png'; a.click(); });
+    uploadShirt.addEventListener('change', e => handleFileInput(e.target.files[0], shirtImg, v => shirtLoaded = v));
+    uploadWatch.addEventListener('change', e => handleFileInput(e.target.files[0], watchImg, v => watchLoaded = v));
+    uploadGoggles.addEventListener('change', e => handleFileInput(e.target.files[0], gogglesImg, v => gogglesLoaded = v));
 
-    // rotator
-    let dragging=false, startX=0, curRot=0;
-    rotator.addEventListener('pointerdown', e=>{ dragging=true; rotator.setPointerCapture(e.pointerId); startX=e.clientX; });
-    rotator.addEventListener('pointermove', e=>{ if(!dragging) return; const dx=e.clientX-startX; startX=e.clientX; curRot+=dx*0.6; staticPreview.style.transform=`rotateY(${curRot}deg)`; });
-    rotator.addEventListener('pointerup', e=>{ dragging=false; try{rotator.releasePointerCapture(e.pointerId)}catch(_){} });
-    rotator.addEventListener('pointerleave', ()=>dragging=false);
+    resetPreview.addEventListener('click', () => { staticPreview.src = ''; staticPreview.style.transform = 'rotateY(0deg)'; });
+    downloadPreview.addEventListener('click', () => {
+      if (!staticPreview.src) return alert('No preview to download');
+      const a = document.createElement('a'); a.href = staticPreview.src; a.download = 'overlay-preview.png'; a.click();
+    });
 
-    // mirror
-    let mirrored=true;
-    mirrorToggle.addEventListener('click', ()=>{ mirrored = !mirrored; video.style.transform = mirrored ? 'scaleX(-1)' : 'scaleX(1)'; });
+    // rotator (simple drag)
+    let dragging = false, startX = 0, curRot = 0;
+    rotator.addEventListener('pointerdown', e => { dragging = true; rotator.setPointerCapture(e.pointerId); startX = e.clientX; });
+    rotator.addEventListener('pointermove', e => { if (!dragging) return; const dx = e.clientX - startX; startX = e.clientX; curRot += dx * 0.6; staticPreview.style.transform = `rotateY(${curRot}deg)`; });
+    rotator.addEventListener('pointerup', e => { dragging = false; try { rotator.releasePointerCapture(e.pointerId) } catch (_) {} });
+    rotator.addEventListener('pointerleave', () => dragging = false);
+
+    // mirror toggle
+    let mirrored = true;
+    mirrorToggle.addEventListener('click', () => { mirrored = !mirrored; video.style.transform = mirrored ? 'scaleX(-1)' : 'scaleX(1)'; });
 
     // screenshot
-    screenshotBtn.addEventListener('click', ()=>{
+    screenshotBtn.addEventListener('click', () => {
       const w = canvas.width, h = canvas.height;
       const tmp = document.createElement('canvas'); tmp.width = w; tmp.height = h; const t = tmp.getContext('2d');
-      if(mirrored){ t.save(); t.scale(-1,1); t.drawImage(video, -w, 0, w, h); t.restore(); } else { t.drawImage(video, 0, 0, w, h); }
+      if (mirrored) { t.save(); t.scale(-1, 1); t.drawImage(video, -w, 0, w, h); t.restore(); } else t.drawImage(video, 0, 0, w, h);
       t.drawImage(canvas, 0, 0, w, h);
       window.open(tmp.toDataURL('image/png'), '_blank');
     });
 
-    // --- MediaPipe Pose setup (use correct constructor: new Pose(...)) ---
-    let latestResults = null;
-    let PoseConstructor = window.Pose || (typeof Pose !== 'undefined' && Pose) || null;
-    if(!PoseConstructor){
-      console.error('MediaPipe Pose not found. Check that pose.js loaded correctly.');
+    // ----------------------------
+    // MediaPipe Pose initialization
+    // ----------------------------
+    // Defensive constructor selection to avoid "Pose.Pose is not a constructor" errors.
+    const PoseConstructor = window.Pose || (typeof Pose !== 'undefined' && Pose) || null;
+    const CameraConstructor = window.Camera || (typeof Camera !== 'undefined' && Camera) || null;
+
+    if (!PoseConstructor) {
+      console.error('MediaPipe Pose constructor not found. Make sure pose.js loaded.');
       fallback.style.display = 'block';
       fallback.innerHTML = `<p><strong>MediaPipe failed to load</strong></p><p class="muted">Open console for details.</p>`;
     }
+
     const pose = PoseConstructor ? new PoseConstructor({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
+      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
     }) : null;
 
-    if(pose){
+    if (pose) {
       pose.setOptions({
         modelComplexity: 1,
         smoothLandmarks: true,
@@ -161,36 +188,29 @@
         minDetectionConfidence: 0.5,
         minTrackingConfidence: 0.5
       });
-      pose.onResults((results) => { latestResults = results; });
     }
 
-    // --- Camera start (getUserMedia primary, Camera fallback) ---
-    let cameraInstance = null;
-    async function startCamera(){
-      if(!pose){
-        console.error('Pose not available, cannot start camera.');
-        return;
-      }
+    let latestResults = null;
+    if (pose) pose.onResults(r => { latestResults = r; });
 
-      const constraints = { audio:false, video:{ width:{ideal:640}, height:{ideal:480}, facingMode:'user' } };
-
+    // ----------------------------
+    // Camera / getUserMedia
+    // ----------------------------
+    async function startCamera() {
+      if (!pose) return console.warn('Pose not available, skipping camera start.');
       fallback.style.display = 'block';
-      fallback.innerHTML = `<p><strong>Starting camera…</strong></p><p class="muted">Waiting for permission / device access.</p>`;
+      fallback.innerHTML = `<p><strong>Starting camera…</strong></p><p class="muted">Allow camera permission when prompted</p>`;
 
-      function showCameraError(msg, obj){
-        console.error('Camera error:', msg, obj);
-        fallback.style.display = 'block';
-        fallback.innerHTML = `<p><strong>Camera unavailable</strong></p><p class="muted">${msg||''}</p><p class="muted">Use HTTPS/localhost and check camera permissions.</p>`;
-      }
+      const constraints = { audio: false, video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' } };
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
-        try{ await video.play(); }catch(e){ console.warn('video.play failed:', e); }
+        try { await video.play(); } catch (err) { console.warn('video.play blocked:', err); }
 
-        // send frames to MediaPipe in a loop
-        (function sendLoop(){
-          try{ pose.send({image: video}); }catch(_){} 
+        // Loop to send frames into MediaPipe
+        (function sendLoop() {
+          try { pose.send({ image: video }); } catch (_) { /* ignore */ }
           requestAnimationFrame(sendLoop);
         })();
 
@@ -200,107 +220,306 @@
       } catch (err) {
         console.warn('getUserMedia failed:', err);
         // fallback to MediaPipe Camera helper if available
-        const CameraConstructor = window.Camera || (typeof Camera !== 'undefined' && Camera) || null;
-        if(!CameraConstructor){
-          showCameraError('Camera helper not found; getUserMedia failed: ' + (err && err.message ? err.message : String(err)), err);
+        if (!CameraConstructor) {
+          fallback.style.display = 'block';
+          fallback.innerHTML = `<p><strong>Camera error</strong></p><p class="muted">${err && err.message ? err.message : String(err)}</p><p class="muted">Try on HTTPS/localhost or check permissions.</p>`;
           return;
         }
         try {
-          cameraInstance = new CameraConstructor(video, {
-            onFrame: async () => { try { await pose.send({image: video}); } catch(_){} },
-            width: 640, height: 480
+          const camera = new CameraConstructor(video, {
+            onFrame: async () => { try { await pose.send({ image: video }); } catch (_) {} },
+            width: 640,
+            height: 480
           });
-          await cameraInstance.start();
+          await camera.start();
           fallback.style.display = 'none';
           console.log('Camera started via MediaPipe Camera helper.');
           return;
-        } catch (err2){
-          showCameraError(err2 && err2.message ? err2.message : String(err2), err2);
+        } catch (err2) {
+          console.error('MediaPipe Camera helper failed:', err2);
+          fallback.style.display = 'block';
+          fallback.innerHTML = `<p><strong>Camera helper error</strong></p><p class="muted">${err2 && err2.message ? err2.message : String(err2)}</p>`;
           return;
         }
       }
     }
 
-    // start camera now
     startCamera();
 
-    // drawing overlay
-    function drawOverlay(){
+    // ----------------------------
+    // Draw overlay: debug + images
+    // ----------------------------
+    function drawOverlay() {
       requestAnimationFrame(drawOverlay);
       const w = canvas.width = video.videoWidth || 640;
       const h = canvas.height = video.videoHeight || 480;
-      ctx.clearRect(0,0,w,h);
+      ctx.clearRect(0, 0, w, h);
 
-      if(!latestResults || !latestResults.image){
+      // draw base frame if MediaPipe hasn't provided processed image
+      if (!latestResults || !latestResults.image) {
         ctx.save();
-        if(mirrored){ ctx.scale(-1,1); ctx.drawImage(video, -w, 0, w, h); } else { ctx.drawImage(video, 0, 0, w, h); }
+        if (mirrored) { ctx.scale(-1, 1); ctx.drawImage(video, -w, 0, w, h); } else ctx.drawImage(video, 0, 0, w, h);
+        ctx.restore();
+      } else {
+        ctx.save();
+        if (mirrored) { ctx.scale(-1, 1); ctx.drawImage(latestResults.image, -w, 0, w, h); } else ctx.drawImage(latestResults.image, 0, 0, w, h);
+        ctx.restore();
+      }
+
+      if (!latestResults || !latestResults.poseLandmarks) return;
+
+      // map landmarks to coordinates (apply mirror flip to x so overlay positions match display)
+      const lm = latestResults.poseLandmarks.map(p => ({ x: mirrored ? 1 - p.x : p.x, y: p.y, z: p.z, visibility: p.visibility || 0 }));
+
+      // draw landmarks (debug)
+      ctx.fillStyle = 'rgba(10,120,240,0.95)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = '10px monospace';
+      lm.forEach((pt, idx) => {
+        const px = pt.x * w, py = pt.y * h;
+        if (!isFinite(px) || !isFinite(py)) return;
+        ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'white';
+        ctx.fillText(idx, px + 6, py + 4);
+        ctx.fillStyle = 'rgba(10,120,240,0.95)';
+      });
+
+      const ok = idx => (lm[idx] && typeof lm[idx].x === 'number' && lm[idx].visibility > 0.01);
+
+      // Shirt placement using shoulders + hips
+      if (ok(11) && ok(12) && ok(23) && ok(24)) {
+        const leftShoulder = lm[11], rightShoulder = lm[12], leftHip = lm[23], rightHip = lm[24];
+        const centerX = ((leftShoulder.x + rightShoulder.x) / 2) * w;
+        const centerY = ((leftShoulder.y + rightShoulder.y) / 2) * h;
+        const hipY = ((leftHip.y + rightHip.y) / 2) * h;
+        const torsoH = Math.max(hipY - centerY, 10);
+        const dx = (rightShoulder.x - leftShoulder.x) * w;
+        const dy = (rightShoulder.y - leftShoulder.y) * h;
+        const shoulderDist = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+
+        // debug rectangle showing where shirt will be drawn
+        ctx.save();
+        ctx.translate(centerX, centerY + torsoH * 0.15);
+        ctx.rotate(angle);
+        ctx.fillStyle = 'rgba(220,40,40,0.20)';
+        ctx.fillRect(-shoulderDist * 0.75, -torsoH * 0.5, shoulderDist * 1.5, torsoH * 1.8);
+        ctx.strokeStyle = 'rgba(220,40,40,0.9)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-shoulderDist * 0.75, -torsoH * 0.5, shoulderDist * 1.5, torsoH * 1.8);
+        ctx.restore();
+
+        // draw shirt image if loaded
+        if (shirtLoaded && shirtImg.complete && shirtImg.naturalWidth) {
+          const shirtW = shoulderDist * 1.45;     // width multiplier (tweakable)
+          const shirtH = torsoH * 2.0;           // height multiplier
+          const shirtY = centerY + torsoH * 0.1;
+          ctx.save();
+          ctx.translate(centerX, shirtY + shirtH / 2);
+          ctx.rotate(angle);
+          ctx.drawImage(shirtImg, -shirtW / 2, -shirtH / 2, shirtW, shirtH);
+          ctx.restore();
+        }
+      }
+
+      // WATCH: choose more-visible wrist
+      const wrist = (ok(16) && ok(15)) ? (lm[16].visibility >= lm[15].visibility ? lm[16] : lm[15]) : (ok(16) ? lm[16] : (ok(15) ? lm[15] : null));
+      if (wrist) {
+        const wx = wrist.x * w, wy = wrist.y * h;
+        // debug circle
+        ctx.save();
+        ctx.fillStyle = 'rgba(20,200,100,0.4)';
+        ctx.beginPath(); ctx.arc(wx, wy, Math.max(12, w * 0.03), 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(20,200,100,0.9)'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.restore();
+
+        if (watchLoaded && watchImg.complete && watchImg.naturalWidth) {
+          const watchW = Math.max(30, (w * 0.18)); // relative or fixed minimum
+          const watchH = watchW * (watchImg.naturalHeight / watchImg.naturalWidth || 1);
+          ctx.save();
+          ctx.translate(wx, wy);
+          ctx.drawImage(watchImg, -watchW / 2, -watchH / 2, watchW, watchH);
+          ctx.restore();
+        }
+      }
+
+      // GOGGLES: based on nose and eye distance
+      if (ok(0)) {
+        let eyeDist = (ok(2) && ok(5)) ? Math.hypot((lm[5].x - lm[2].x) * w, (lm[5].y - lm[2].y) * h) : (w * 0.18);
+        const gx = lm[0].x * w, gy = lm[0].y * h - eyeDist * 0.05;
+        // debug box
+        ctx.save();
+        ctx.strokeStyle = 'rgba(10,10,200,0.9)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(gx - eyeDist, gy - eyeDist * 0.3, eyeDist * 2, eyeDist * 0.6);
+        ctx.fillStyle = 'rgba(10,10,200,0.12)';
+        ctx.fillRect(gx - eyeDist, gy - eyeDist * 0.3, eyeDist * 2, eyeDist * 0.6);
+        ctx.restore();
+
+        if (gogglesLoaded && gogglesImg.complete && gogglesImg.naturalWidth) {
+          const gW = Math.max(eyeDist * 1.6, 40);
+          const gH = gW * (gogglesImg.naturalHeight / gogglesImg.naturalWidth || 1);
+          ctx.save();
+          ctx.translate(gx, gy);
+          ctx.drawImage(gogglesImg, -gW / 2, -gH / 2, gW, gH);
+          ctx.restore();
+        }
+      }
+    }
+
+    drawOverlay = (function startDraw(){
+      // expose draw function and start loop
+      function loop(){ requestAnimationFrame(loop); /* placeholder */ }
+      return function actualDraw(){ requestAnimationFrame(actualDraw); drawLoop(); };
+      // actualDraw will be called below, and drawLoop defined next
+    })();
+
+    // Define drawLoop separately so closure above works cleanly
+    function drawLoop(){
+      // Dummy name to avoid hoisting confusion: call the real drawing function
+      // (We will call drawOverlay below directly, simpler)
+    }
+
+    // Simpler: call function directly via requestAnimationFrame loop
+    (function rafLoop(){
+      requestAnimationFrame(rafLoop);
+      if (typeof window !== 'undefined') { /* intentionally no-op; drawing handled below */ }
+    })();
+
+    // Instead of the complicated closure above, just run drawOverlay via setInterval/requestAnimationFrame:
+    function loopDraw() { drawOverlayFrame(); requestAnimationFrame(loopDraw); }
+    function drawOverlayFrame(){ /* actual drawing function is above named drawOverlayFrameImpl */ }
+    // To keep names clear, call the actual painting function directly:
+    function drawOverlayFrameImpl(){ /* this will be replaced by drawOverlay function body */ }
+
+    // We'll just call the drawOverlay body defined earlier by copying its body here:
+    // For clarity and to avoid name confusion, call drawLoopReal:
+    function drawLoopReal(){
+      // copy the earlier drawOverlay body here by executing the same code:
+      // (call the function we wrote above by name: drawOverlayMain)
+      if (typeof drawOverlayMain === 'function') drawOverlayMain();
+      requestAnimationFrame(drawLoopReal);
+    }
+
+    // To keep code readable: define drawOverlayMain = the earlier drawOverlay implementation
+    // (we'll move earlier implementation into this function)
+    // Re-declare the drawOverlayMain using the code above:
+    function drawOverlayMain(){
+      const w = canvas.width = video.videoWidth || 640;
+      const h = canvas.height = video.videoHeight || 480;
+      ctx.clearRect(0, 0, w, h);
+
+      if (!latestResults || !latestResults.image) {
+        ctx.save();
+        if (mirrored) { ctx.scale(-1, 1); ctx.drawImage(video, -w, 0, w, h); } else { ctx.drawImage(video, 0, 0, w, h); }
         ctx.restore();
         return;
       }
 
       ctx.save();
-      if(mirrored){ ctx.scale(-1,1); ctx.drawImage(latestResults.image, -w, 0, w, h); } else { ctx.drawImage(latestResults.image, 0, 0, w, h); }
+      if (mirrored) { ctx.scale(-1, 1); ctx.drawImage(latestResults.image, -w, 0, w, h); } else { ctx.drawImage(latestResults.image, 0, 0, w, h); }
       ctx.restore();
 
-      const rawLM = latestResults.poseLandmarks || [];
-      if(!rawLM.length) return;
-      const lm = rawLM.map(p => ({ x: mirrored ? 1 - p.x : p.x, y: p.y, z: p.z, visibility: p.visibility || 0 }));
+      if (!latestResults || !latestResults.poseLandmarks) return;
+
+      const lm = latestResults.poseLandmarks.map(p => ({ x: mirrored ? 1 - p.x : p.x, y: p.y, z: p.z, visibility: p.visibility || 0 }));
+
+      ctx.fillStyle = 'rgba(10,120,240,0.95)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = '10px monospace';
+      lm.forEach((pt, idx) => {
+        const px = pt.x * w, py = pt.y * h;
+        if (!isFinite(px) || !isFinite(py)) return;
+        ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'white';
+        ctx.fillText(idx, px + 6, py + 4);
+        ctx.fillStyle = 'rgba(10,120,240,0.95)';
+      });
 
       const ok = idx => (lm[idx] && typeof lm[idx].x === 'number' && lm[idx].visibility > 0.01);
-      const leftShoulder = ok(11) ? lm[11] : null;
-      const rightShoulder = ok(12) ? lm[12] : null;
-      const leftHip = ok(23) ? lm[23] : null;
-      const rightHip = ok(24) ? lm[24] : null;
-      const nose = ok(0) ? lm[0] : null;
-      const rightWrist = ok(16) ? lm[16] : null;
-      const leftWrist = ok(15) ? lm[15] : null;
 
-      if(leftShoulder && rightShoulder && leftHip && rightHip){
-        const centerX = ((leftShoulder.x + rightShoulder.x)/2)*w;
-        const centerY = ((leftShoulder.y + rightShoulder.y)/2)*h;
-        const hipY = ((leftHip.y + rightHip.y)/2)*h;
+      if (ok(11) && ok(12) && ok(23) && ok(24)) {
+        const leftShoulder = lm[11], rightShoulder = lm[12], leftHip = lm[23], rightHip = lm[24];
+        const centerX = ((leftShoulder.x + rightShoulder.x) / 2) * w;
+        const centerY = ((leftShoulder.y + rightShoulder.y) / 2) * h;
+        const hipY = ((leftHip.y + rightHip.y) / 2) * h;
         const torsoH = Math.max(hipY - centerY, 10);
-        const dx = (rightShoulder.x - leftShoulder.x)*w;
-        const dy = (rightShoulder.y - leftShoulder.y)*h;
-        const distShoulders = Math.sqrt(dx*dx + dy*dy);
+        const dx = (rightShoulder.x - leftShoulder.x) * w;
+        const dy = (rightShoulder.y - leftShoulder.y) * h;
+        const shoulderDist = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
 
-        if(shirtLoaded){
-          const shirtW = distShoulders * 1.45;
+        ctx.save();
+        ctx.translate(centerX, centerY + torsoH * 0.15);
+        ctx.rotate(angle);
+        ctx.fillStyle = 'rgba(220,40,40,0.20)';
+        ctx.fillRect(-shoulderDist * 0.75, -torsoH * 0.5, shoulderDist * 1.5, torsoH * 1.8);
+        ctx.strokeStyle = 'rgba(220,40,40,0.9)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-shoulderDist * 0.75, -torsoH * 0.5, shoulderDist * 1.5, torsoH * 1.8);
+        ctx.restore();
+
+        if (shirtLoaded && shirtImg.complete && shirtImg.naturalWidth) {
+          const shirtW = shoulderDist * 1.45;
           const shirtH = torsoH * 2.0;
           const shirtY = centerY + torsoH * 0.1;
-          ctx.save(); ctx.translate(centerX, shirtY + shirtH/2); ctx.rotate(Math.atan2(dy,dx)); ctx.drawImage(shirtImg, -shirtW/2, -shirtH/2, shirtW, shirtH); ctx.restore();
+          ctx.save();
+          ctx.translate(centerX, shirtY + shirtH / 2);
+          ctx.rotate(angle);
+          ctx.drawImage(shirtImg, -shirtW / 2, -shirtH / 2, shirtW, shirtH);
+          ctx.restore();
         }
+      }
 
-        if(watchLoaded){
-          const wrist = (rightWrist && leftWrist) ? (rightWrist.visibility >= leftWrist.visibility ? rightWrist : leftWrist) : (rightWrist || leftWrist || null);
-          if(wrist){
-            const wx = wrist.x * w;
-            const wy = wrist.y * h;
-            const watchW = distShoulders * 0.18;
-            const watchH = watchW * (watchImg.naturalHeight || 1) / (watchImg.naturalWidth || 1);
-            ctx.save(); ctx.translate(wx, wy); ctx.drawImage(watchImg, -watchW/2, -watchH/2, watchW, watchH); ctx.restore();
-          }
+      const wrist = (ok(16) && ok(15)) ? (lm[16].visibility >= lm[15].visibility ? lm[16] : lm[15]) : (ok(16) ? lm[16] : (ok(15) ? lm[15] : null));
+      if (wrist) {
+        const wx = wrist.x * w, wy = wrist.y * h;
+        ctx.save();
+        ctx.fillStyle = 'rgba(20,200,100,0.4)';
+        ctx.beginPath(); ctx.arc(wx, wy, Math.max(12, w * 0.03), 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(20,200,100,0.9)'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.restore();
+
+        if (watchLoaded && watchImg.complete && watchImg.naturalWidth) {
+          const watchW = Math.max(30, (w * 0.18));
+          const watchH = watchW * (watchImg.naturalHeight / watchImg.naturalWidth || 1);
+          ctx.save();
+          ctx.translate(wx, wy);
+          ctx.drawImage(watchImg, -watchW / 2, -watchH / 2, watchW, watchH);
+          ctx.restore();
         }
+      }
 
-        if(gogglesLoaded && nose){
-          let eyeDist = distShoulders * 0.35;
-          if(ok(2) && ok(5)){ const eL = lm[2], eR = lm[5]; eyeDist = Math.hypot((eR.x - eL.x)*w, (eR.y - eL.y)*h); }
-          const gx = nose.x * w;
-          const gy = nose.y * h - eyeDist*0.05;
-          const gW = Math.max(eyeDist * 2.0, eyeDist * 1.6);
-          const gH = gW * (gogglesImg.naturalHeight || 1) / (gogglesImg.naturalWidth || 1);
-          ctx.save(); ctx.translate(gx, gy); ctx.drawImage(gogglesImg, -gW/2, -gH/2, gW, gH); ctx.restore();
+      if (ok(0)) {
+        let eyeDist = (ok(2) && ok(5)) ? Math.hypot((lm[5].x - lm[2].x) * w, (lm[5].y - lm[2].y) * h) : (w * 0.18);
+        const gx = lm[0].x * w, gy = lm[0].y * h - eyeDist * 0.05;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(10,10,200,0.9)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(gx - eyeDist, gy - eyeDist * 0.3, eyeDist * 2, eyeDist * 0.6);
+        ctx.fillStyle = 'rgba(10,10,200,0.12)';
+        ctx.fillRect(gx - eyeDist, gy - eyeDist * 0.3, eyeDist * 2, eyeDist * 0.6);
+        ctx.restore();
+
+        if (gogglesLoaded && gogglesImg.complete && gogglesImg.naturalWidth) {
+          const gW = Math.max(eyeDist * 1.6, 40);
+          const gH = gW * (gogglesImg.naturalHeight / gogglesImg.naturalWidth || 1);
+          ctx.save();
+          ctx.translate(gx, gy);
+          ctx.drawImage(gogglesImg, -gW / 2, -gH / 2, gW, gH);
+          ctx.restore();
         }
       }
     }
-    drawOverlay();
+
+    // start drawing loop
+    (function startLoop(){ requestAnimationFrame(function loop(){ drawOverlayMain(); requestAnimationFrame(loop); }); })();
 
     // Resize canvas on video metadata load
     video.addEventListener('loadedmetadata', ()=>{ canvas.width = video.videoWidth || 640; canvas.height = video.videoHeight || 480; });
 
-    // Expose debug helpers
+    // Expose debug helpers (optional)
     window.ChechIT = { startCamera, setMirror: m => { mirrored = !!m; video.style.transform = mirrored ? 'scaleX(-1)' : 'scaleX(1)'; } };
-
   </script>
 </body>
 </html>
