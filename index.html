@@ -2,31 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Ch</title>
+  <title>ChechIT – AR Try-On</title>
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:'Segoe UI',sans-serif; background:#eef2f5; color:#333; }
-    header { background:#4a90e2; color:#fff; padding:1rem; text-align:center; font-size:1.6rem; }
-    section { max-width:900px; margin:2rem auto; background:#fff; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1); padding:2rem; }
-    h2 { font-size:1.5rem; color:#4a90e2; margin-bottom:1rem; text-align:center; position:relative; }
-    h2::after { content:''; position:absolute; bottom:-8px; left:50%; transform:translateX(-50%); width:60px; height:3px; background:#4a90e2; border-radius:2px; }
-    p { text-align:center; color:#666; margin-bottom:1.5rem; }
-    iframe { width:100%; height:500px; border:none; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); transition:transform .3s; }
-    iframe:hover { transform:translateY(-4px); }
-    .upload-section { display:flex; justify-content:space-around; flex-wrap:wrap; gap:1rem; margin-bottom:2rem; }
-    .upload-btn { position:relative; overflow:hidden; display:inline-block; }
-    .upload-btn input { position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer; }
-    .upload-btn span { display:block; background:#4a90e2; color:#fff; padding:0.75rem 1.5rem; border-radius:8px; transition:background .3s; user-select:none; }
-    .upload-btn span:hover { background:#357ab8; }
-    .static-shirt { perspective:800px; width:320px; margin:1rem auto; }
-    .rotator { width:100%; height:400px; border:2px solid #ddd; border-radius:12px; background:#fafafa; display:flex; align-items:center; justify-content:center; cursor:grab; transform-style:preserve-3d; }
-    .rotator img { max-width:90%; max-height:90%; pointer-events:none; user-select:none; backface-visibility:hidden; transition:transform .1s; }
-    .rotator:active { cursor:grabbing; }
-    .rotator-placeholder { color:#999; text-align:center; }
-    .ar-container { position:relative; width:640px; height:480px; margin:auto; border-radius:12px; overflow:hidden; box-shadow:0 8px 30px rgba(0,0,0,0.2); background:#000; }
-    video { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
-    .overlay { position:absolute; pointer-events:none; transform-origin:center top; will-change:transform; }
-    .status-bar { position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.6); color:#fff; padding:5px 10px; border-radius:20px; font-size:0.9rem; }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',sans-serif;background:#eef2f5;color:#333}
+    header{background:#4a90e2;color:#fff;padding:1rem;text-align:center;font-size:1.6rem}
+    section{max-width:900px;margin:2rem auto;background:#fff;border-radius:12px;box-shadow:0 4px 15px rgba(0,0,0,0.1);padding:2rem}
+    h2{font-size:1.5rem;color:#4a90e2;margin-bottom:1rem;text-align:center;position:relative}
+    h2::after{content:'';position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:60px;height:3px;background:#4a90e2;border-radius:2px}
+    p{text-align:center;color:#666;margin-bottom:1.5rem}
+    iframe{width:100%;height:500px;border:none;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);transition:transform .3s}
+    iframe:hover{transform:translateY(-4px)}
+    .upload-section{display:flex;justify-content:space-around;flex-wrap:wrap;gap:1rem;margin-bottom:2rem}
+    .upload-btn{position:relative;overflow:hidden;display:inline-block}
+    .upload-btn input{position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer}
+    .upload-btn span{display:block;background:#4a90e2;color:#fff;padding:.75rem 1.5rem;border-radius:8px;transition:background .3s;user-select:none}
+    .upload-btn span:hover{background:#357ab8}
+    .static-shirt{perspective:800px;width:320px;margin:1rem auto}
+    .rotator{width:100%;height:400px;border:2px solid #ddd;border-radius:12px;background:#fafafa;display:flex;align-items:center;justify-content:center;cursor:grab;transform-style:preserve-3d}
+    .rotator img{max-width:90%;max-height:90%;pointer-events:none;user-select:none;backface-visibility:hidden;transition:transform .1s}
+    .rotator:active{cursor:grabbing}
+    .rotator-placeholder{color:#999;text-align:center}
+    .ar-container{position:relative;width:640px;height:480px;margin:auto;border-radius:12px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.2);background:#000}
+    video{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+    .overlay{position:absolute;pointer-events:none;transform-origin:center top;will-change:transform}
+    .status-bar{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.6);color:#fff;padding:5px 10px;border-radius:20px;font-size:.9rem}
   </style>
 </head>
 <body>
@@ -71,60 +71,62 @@
           placeholder = document.getElementById('rotatorPlaceholder'),
           rotator = document.getElementById('rotator');
 
-    // Upload & preview
+    // Upload + preview
     ['Shirt','Watch','Goggles'].forEach(type=>{
-      const inp = document.getElementById('upload'+type),
-            img = (type==='Shirt'?shirtO:type==='Watch'?watchO:gogglesO);
-      inp.addEventListener('change', e=>{
-        const f=e.target.files[0];
-        if(!f) return;
+      const inp=document.getElementById('upload'+type),
+            img=(type==='Shirt'?shirtO:type==='Watch'?watchO:gogglesO);
+      inp.addEventListener('change',e=>{
+        const f=e.target.files[0]; if(!f)return;
         const r=new FileReader();
-        r.onload = ev=>{
-          img.src = ev.target.result;
-          img.style.display = 'block';
+        r.onload=ev=>{
+          img.src=ev.target.result;
+          img.style.display='block';
           if(type==='Shirt'){
-            preview.src = ev.target.result;
-            preview.style.display = 'block';
-            placeholder.style.display = 'none';
-            rot=0; preview.style.transform='rotateY(0deg)';
+            preview.src=ev.target.result; preview.style.display='block'; placeholder.style.display='none'; rot=0; preview.style.transform='rotateY(0deg)';
           }
+          statusBar.textContent=`${type} loaded.`;
         };
         r.readAsDataURL(f);
       });
     });
 
-    // 3D Rotator
+    // 3D rotator
     let isDown=false, startX, rot=0;
     rotator.addEventListener('mousedown',e=>{isDown=true; startX=e.clientX;});
-    window.addEventListener('mousemove',e=>{if(!isDown) return; rot+=(e.clientX-startX)*0.5; preview.style.transform=`rotateY(${rot}deg)`; startX=e.clientX;});
+    window.addEventListener('mousemove',e=>{ if(!isDown) return; rot+=(e.clientX-startX)*0.5; preview.style.transform=`rotateY(${rot}deg)`; startX=e.clientX; });
     window.addEventListener('mouseup',()=>isDown=false);
 
-    // Camera
+    // Camera init
     navigator.mediaDevices.getUserMedia({video:{width:640,height:480}})
-      .then(s=>{video.srcObject=s; statusBar.textContent='Loading Pose…';});
+      .then(s=>{video.srcObject=s; statusBar.textContent='Loading pose…';});
 
-    let latestPose = null;
-    const pose = new Pose({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}`});
+    let latest=null;
+    const pose=new Pose({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}`});
     pose.setOptions({modelComplexity:1,smoothLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
-    pose.onResults(r=>{latestPose=r.poseLandmarks; statusBar.textContent='AR Active';});
+    pose.onResults(r=>{latest=r.poseLandmarks; statusBar.textContent='AR Active';});
     new Camera(video,{onFrame:async()=>await pose.send({image:video}),width:640,height:480}).start();
 
-    function update(){
-      if(latestPose){
-        const w=video.clientWidth, h=video.clientHeight;
-        const P=i=>{const p=latestPose[i];return{x:(1-p.x)*w,y:p.y*h,v:p.visibility};};
-        const ls=P(11), rs=P(12), lh=P(23), rh=P(24);
+    // smoothing filter
+    const smoothPts={}; function smooth(i,p,alpha=0.3){
+      if(!smoothPts[i]) smoothPts[i]=p;
+      else smoothPts[i]={x:smoothPts[i].x*(1-alpha)+p.x*alpha, y:smoothPts[i].y*(1-alpha)+p.y*alpha, v:p.v};
+      return smoothPts[i];
+    }
 
-        // Shirt overlay only
-        if(shirtO.src && ls.v>0.5 && rs.v>0.5 && lh.v>0.5 && rh.v>0.5){
+    function update(){
+      if(latest){
+        const w=video.clientWidth, h=video.clientHeight;
+        const P=i=>{const p=smooth(i,{x:latest[i].x,y:latest[i].y,v:latest[i].visibility});return{x:(1-p.x)*w,y:p.y*h,v:p.v};};
+        const ls=P(11), rs=P(12), lh=P(23), rh=P(24), rw=P(16);
+
+        // Shirt only
+        if(shirtO.src && ls.v>.5 && rs.v>.5 && lh.v>.5 && rh.v>.5){
           const cx=(ls.x+rs.x)/2, cy=(ls.y+rs.y)/2, hipY=(lh.y+rh.y)/2;
-          const H = Math.abs(hipY-cy)*1.8, W = Math.hypot(rs.x-ls.x,rs.y-ls.y)*1.4;
-          const ang = Math.atan2(rs.y-ls.y, rs.x-ls.x)*180/Math.PI;
+          const H=Math.abs(hipY-cy)*1.9, W=Math.hypot(rs.x-ls.x,rs.y-ls.y)*1.45;
+          const ang=Math.atan2(rs.y-ls.y,rs.x-ls.x)*180/Math.PI;
           Object.assign(shirtO.style,{
-            left:`${cx-W/2}px`,
-            top:`${cy-H/2}px`,
-            width:`${W}px`,
-            height:`${H}px`,
+            left:`${cx-W/2}px`, top:`${cy-H/2}px`,
+            width:`${W}px`, height:`${H}px`,
             transform:`rotate(${ang}deg)`
           });
         }
