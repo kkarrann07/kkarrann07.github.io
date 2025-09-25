@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ChechIT – AR Try-On</title>
+  <title>CAR Try-On</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { 
@@ -316,14 +316,14 @@
           // Width based on shoulder distance
           const shoulderDistance = Math.abs(rightX - leftX);
           const shirtWidth = shoulderDistance * 2.0;
-          const shirtHeight = shirtWidth * 1.2; // Maintain aspect ratio
+          const shirtHeight = shirtWidth * 1.2;
           
           // Rotation based on shoulder line
           const angle = Math.atan2(rightY - leftY, rightX - leftX) * 180 / Math.PI;
           
-          // Position shirt
+          // Position shirt AT shoulder level, not below
           shirtOverlay.style.left = `${centerX - shirtWidth/2}px`;
-          shirtOverlay.style.top = `${centerY - shirtHeight/4}px`; // Slightly below shoulders
+          shirtOverlay.style.top = `${centerY - shirtHeight/2}px`; // CENTER at shoulder level
           shirtOverlay.style.width = `${shirtWidth}px`;
           shirtOverlay.style.height = `${shirtHeight}px`;
           shirtOverlay.style.transform = `rotate(${angle}deg)`;
