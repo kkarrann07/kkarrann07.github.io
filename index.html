@@ -167,22 +167,19 @@
     let mirrored = true;
 
     // --- File upload handling & previews ---
-    function handleFileInput(file, imgObj, onLoadFlagSetter){
+    function handleFileInput(file, imgObj){
       if(!file) return;
       const reader = new FileReader();
       reader.onload = ev => {
         imgObj.src = ev.target.result;
-        // set static preview to shirt by default (makes most sense)
         staticPreview.src = ev.target.result;
       };
       reader.readAsDataURL(file);
     }
 
-    uploadShirt.addEventListener('change', e => {
-      handleFileInput(e.target.files[0], shirtImg, () => shirtLoaded = true);
-    });
-    uploadWatch.addEventListener('change', e => { handleFileInput(e.target.files[0], watchImg, () => watchLoaded = true); });
-    uploadGoggles.addEventListener('change', e => { handleFileInput(e.target.files[0], gogglesImg, () => gogglesLoaded = true); });
+    uploadShirt.addEventListener('change', e => handleFileInput(e.target.files[0], shirtImg));
+    uploadWatch.addEventListener('change', e => handleFileInput(e.target.files[0], watchImg));
+    uploadGoggles.addEventListener('change', e => handleFileInput(e.target.files[0], gogglesImg));
 
     shirtImg.onload = () => shirtLoaded = true;
     watchImg.onload = () => watchLoaded = true;
@@ -194,7 +191,6 @@
     });
 
     downloadPreview.addEventListener('click', () => {
-      // Download the current staticPreview image (if any)
       if(!staticPreview.src) return alert('No preview image to download');
       const a = document.createElement('a');
       a.href = staticPreview.src;
@@ -213,7 +209,7 @@
       if(!dragging) return;
       const dx = e.clientX - startX;
       startX = e.clientX;
-      currentRot += dx * 0.6; // sensitivity
+      currentRot += dx * 0.6;
       applyRotation(currentRot);
     });
     rotator.addEventListener('pointerup', e => { dragging = false; try{ rotator.releasePointerCapture(e.pointerId) }catch(_){} });
@@ -222,20 +218,17 @@
     // --- Mirror toggle ---
     mirrorToggle.addEventListener('click', () => {
       mirrored = !mirrored;
-      // flip video element transform to reflect
       video.style.transform = mirrored ? 'scaleX(-1)' : 'scaleX(1)';
     });
 
     // --- Screenshot ---
     screenshotBtn.addEventListener('click', () => {
-      // Compose a screenshot from video frame + canvas overlays
       const w = canvas.width;
       const h = canvas.height;
       const tmp = document.createElement('canvas');
       tmp.width = w; tmp.height = h;
       const tctx = tmp.getContext('2d');
 
-      // Video (respect mirroring)
       if(mirrored){
         tctx.save();
         tctx.scale(-1,1);
@@ -244,10 +237,7 @@
       } else {
         tctx.drawImage(video, 0, 0, w, h);
       }
-      // Overlay canvas contents
       tctx.drawImage(canvas, 0, 0, w, h);
-
-      // Open in new tab for download/save
       const url = tmp.toDataURL('image/png');
       window.open(url, '_blank');
     });
@@ -266,23 +256,72 @@
     });
     pose.onResults((results) => { latestResults = results; });
 
-    // Start camera
+    // --- Robust camera start routine ---
     let cameraInstance = null;
-    async function startCamera(){
-      try{
-        // Use MediaPipe Camera helper for consistent frame feed
-        cameraInstance = new Camera.Camera(video, {
-          onFrame: async () => await pose.send({image: video}),
-          width: 640,
-          height: 480
-        });
-        await cameraInstance.start();
-        fallback.style.display = 'none';
-      }catch(err){
-        console.warn('Camera start failed', err);
+    async function startCamera() {
+      const constraints = {
+        audio: false,
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: "user"
+        }
+      };
+
+      fallback.style.display = 'block';
+      fallback.innerHTML = `<p><strong>Starting camera…</strong></p><p class="muted">Waiting for permission / device access.</p>`;
+
+      function showCameraError(errMsg, errObj) {
+        console.error("Camera error:", errMsg, errObj);
         fallback.style.display = 'block';
+        fallback.innerHTML = `<p><strong>Camera unavailable</strong></p>
+          <p class="muted">${escapeHtml(errMsg)}</p>
+          <p class="muted">Check permissions, secure origin (HTTPS or localhost), and that no other app is using the camera.</p>`;
+      }
+
+      function escapeHtml(s) {
+        return (s + '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      }
+
+      try {
+        // Primary path: getUserMedia
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+        try { await video.play(); } catch(e) { console.warn("video.play() failed (autoplay policy):", e); }
+
+        // send frames to MediaPipe in a loop
+        const sendFrame = async () => {
+          try { await pose.send({ image: video }); } catch (_) {}
+          requestAnimationFrame(sendFrame);
+        };
+        sendFrame();
+
+        fallback.style.display = 'none';
+        console.log("Camera started via getUserMedia.");
+        return;
+      } catch (err) {
+        console.warn("getUserMedia failed, trying MediaPipe Camera helper. Error:", err);
+        // Fallback: MediaPipe Camera helper
+        try {
+          cameraInstance = new Camera.Camera(video, {
+            onFrame: async () => {
+              try { await pose.send({ image: video }); } catch(_) {}
+            },
+            width: 640,
+            height: 480
+          });
+          await cameraInstance.start();
+          fallback.style.display = 'none';
+          console.log("Camera started via MediaPipe Camera helper.");
+          return;
+        } catch (err2) {
+          showCameraError(err2 && err2.message ? err2.message : (err && err.message ? err.message : String(err)), err2 || err);
+          return;
+        }
       }
     }
+
+    // Start camera now
     startCamera();
 
     // --- Animation / drawing loop ---
@@ -293,10 +332,7 @@
 
       ctx.clearRect(0,0,w,h);
 
-      // Draw mirrored video to canvas as background for debug/preview if desired
-      // We only draw the frame when there's no latestResults.image (MediaPipe returns an image)
       if(!latestResults || !latestResults.image){
-        // draw current video frame mirrored if needed
         ctx.save();
         if(mirrored){ ctx.scale(-1,1); ctx.drawImage(video, -w, 0, w, h); }
         else ctx.drawImage(video, 0, 0, w, h);
@@ -304,7 +340,6 @@
         return;
       }
 
-      // Draw the actual frame from MediaPipe result (it gives a neat processed image)
       ctx.save();
       if(mirrored){
         ctx.scale(-1,1);
@@ -314,16 +349,13 @@
       }
       ctx.restore();
 
-      // prepare landmarks with x flipped if we mirrored (so overlay logic stays consistent with what's shown)
       const rawLM = latestResults.poseLandmarks || [];
-      if(!rawLM.length) return; // no landmarks available
+      if(!rawLM.length) return;
 
       const lm = rawLM.map(p => ({ x: mirrored ? 1 - p.x : p.x, y: p.y, z: p.z, visibility: p.visibility || 0 }));
 
-      // helper to check landmark exists and is visible enough
       const ok = idx => (lm[idx] && typeof lm[idx].x === 'number' && lm[idx].visibility > 0.01);
 
-      // indices: 11 left shoulder, 12 right shoulder, 23 left hip, 24 right hip, 0 nose, 16 right wrist, 15 left wrist, 2 left eye, 5 right eye
       const leftShoulder = ok(11) ? lm[11] : null;
       const rightShoulder = ok(12) ? lm[12] : null;
       const leftHip = ok(23) ? lm[23] : null;
@@ -333,25 +365,20 @@
       const leftWrist = ok(15) ? lm[15] : null;
 
       if(leftShoulder && rightShoulder && leftHip && rightHip){
-        // torso center and size
         const centerX = ((leftShoulder.x + rightShoulder.x)/2) * w;
         const centerY = ((leftShoulder.y + rightShoulder.y)/2) * h;
         const hipY = ((leftHip.y + rightHip.y)/2) * h;
         const torsoH = Math.max(hipY - centerY, 10);
 
-        // shoulder vector for rotation and width
         const dx = (rightShoulder.x - leftShoulder.x) * w;
         const dy = (rightShoulder.y - leftShoulder.y) * h;
         const distShoulders = Math.sqrt(dx*dx + dy*dy);
         const angle = Math.atan2(dy, dx);
 
-        // Shirt overlay
         if(shirtLoaded){
-          const shirtW = distShoulders * 1.45; // tweak multiplier to change coverage
+          const shirtW = distShoulders * 1.45;
           const shirtH = torsoH * 2.0;
-          // position a bit below shoulders
           const shirtY = centerY + torsoH * 0.1;
-
           ctx.save();
           ctx.translate(centerX, shirtY + shirtH/2);
           ctx.rotate(angle);
@@ -359,34 +386,29 @@
           ctx.restore();
         }
 
-        // Watch overlay - try both wrists (choose one with higher visibility)
         if(watchLoaded){
           const wrist = (rightWrist && leftWrist) ? (rightWrist.visibility >= leftWrist.visibility ? rightWrist : leftWrist)
                       : (rightWrist || leftWrist || null);
           if(wrist){
             const wx = wrist.x * w;
             const wy = wrist.y * h;
-            // watch size relative to shoulder width (so it scales)
             const watchW = distShoulders * 0.18;
             const watchH = watchW * (watchImg.naturalHeight || 1) / (watchImg.naturalWidth || 1);
             ctx.save();
-            // small rotation to match local wrist angle (optional)
             ctx.translate(wx, wy);
             ctx.drawImage(watchImg, -watchW/2, -watchH/2, watchW, watchH);
             ctx.restore();
           }
         }
 
-        // Goggles overlay - base on nose and eye distance
         if(gogglesLoaded && nose){
-          // estimate eye distance via eye landmarks if available (left eye idx 2, right eye idx 5)
-          let eyeDist = distShoulders * 0.35; // fallback
+          let eyeDist = distShoulders * 0.35;
           if(ok(2) && ok(5)){
             const eL = lm[2], eR = lm[5];
             eyeDist = Math.hypot((eR.x - eL.x)*w, (eR.y - eL.y)*h);
           }
           const gx = nose.x * w;
-          const gy = nose.y * h - eyeDist*0.05; // lift a little
+          const gy = nose.y * h - eyeDist*0.05;
           const gW = Math.max(eyeDist * 2.0, eyeDist * 1.6);
           const gH = gW * (gogglesImg.naturalHeight || 1) / (gogglesImg.naturalWidth || 1);
 
@@ -405,10 +427,7 @@
       canvas.height = video.videoHeight || 480;
     });
 
-    // Accessibility: inform user if no camera permission / fallback
-    // The fallback element is toggled in startCamera() errors.
-
-    // Optional: expose some global controls for debug
+    // Debug helper exposed
     window.ChechIT = {
       setMirror: (m) => { mirrored = !!m; video.style.transform = mirrored ? 'scaleX(-1)' : 'scaleX(1)'; },
       startCamera
