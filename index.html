@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ChechIT – AR Try-On</title>
+  <title>C</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { 
@@ -96,6 +96,12 @@
       padding:8px 15px; border-radius:25px; font-size:0.9rem;
       backdrop-filter:blur(5px);
     }
+    .debug-info { 
+      position:absolute; top:60px; right:15px; 
+      background:rgba(0,0,0,0.7); color:#fff; 
+      padding:8px 12px; border-radius:15px; font-size:0.8rem;
+      font-family:monospace; max-width:200px;
+    }
     .emoji { font-size:1.2rem; margin-right:8px; }
     
     @media (max-width:768px) {
@@ -158,6 +164,7 @@
     <img id="watchOverlay" class="overlay" style="display:none" />
     <img id="gogglesOverlay" class="overlay" style="display:none" />
     <div class="status-bar" id="statusBar">Initializing...</div>
+    <div class="debug-info" id="debugInfo">Debug: Ready</div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
@@ -165,6 +172,7 @@
   <script>
     const video = document.getElementById('video');
     const statusBar = document.getElementById('statusBar');
+    const debugInfo = document.getElementById('debugInfo');
     const shirtOverlay = document.getElementById('shirtOverlay');
     const watchOverlay = document.getElementById('watchOverlay');
     const gogglesOverlay = document.getElementById('gogglesOverlay');
@@ -172,10 +180,9 @@
     const placeholder = document.getElementById('placeholder');
     const rotator = document.getElementById('rotator');
 
-    // State management
+    // State
     let activeOverlay = null;
-    let smoothedLandmarks = {};
-    const smoothingFactor = 0.3; // Reduced for more responsiveness
+    let frameCount = 0;
 
     // 3D Rotator
     let isDragging = false, startX = 0, rotation = 0;
@@ -202,30 +209,7 @@
     }
     setup3DRotator();
 
-    // Reset smoothing when switching overlays
-    function resetSmoothing() {
-      smoothedLandmarks = {};
-    }
-
-    // Improved smoothing function
-    function smoothLandmark(index, landmark) {
-      if (!landmark || landmark.visibility < 0.3) return null;
-      
-      if (!smoothedLandmarks[index]) {
-        smoothedLandmarks[index] = { x: landmark.x, y: landmark.y };
-      } else {
-        smoothedLandmarks[index].x = smoothedLandmarks[index].x * smoothingFactor + landmark.x * (1 - smoothingFactor);
-        smoothedLandmarks[index].y = smoothedLandmarks[index].y * smoothingFactor + landmark.y * (1 - smoothingFactor);
-      }
-      
-      return {
-        x: smoothedLandmarks[index].x,
-        y: smoothedLandmarks[index].y,
-        visibility: landmark.visibility
-      };
-    }
-
-    // Upload handling - one item at a time
+    // Upload handling
     function setupInput(inputId, overlayImg, btnId, overlayType) {
       const input = document.getElementById(inputId);
       const btn = document.getElementById(btnId);
@@ -234,7 +218,7 @@
         const file = e.target.files[0];
         if (!file) return;
         
-        // Reset all overlays and buttons
+        // Reset all
         [shirtOverlay, watchOverlay, gogglesOverlay].forEach(o => {
           o.style.display = 'none';
           o.src = '';
@@ -244,7 +228,6 @@
           b.innerHTML = b.innerHTML.replace('✅ Active', '').replace('Active', 'Upload');
         });
         
-        resetSmoothing();
         btn.innerHTML = '<span class="emoji">⏳</span>Loading...';
         
         const reader = new FileReader();
@@ -259,12 +242,13 @@
           rotation = 0;
           previewImg.style.transform = 'rotateY(0deg)';
           
-          // Mark as active
+          // Mark active
           btn.classList.add('active');
           btn.innerHTML = `<span class="emoji">✅</span>Active ${overlayType}`;
           activeOverlay = overlayType;
           
-          statusBar.textContent = `${overlayType} loaded - AR Active`;
+          statusBar.textContent = `${overlayType} loaded`;
+          console.log(`${overlayType} loaded and ready`);
         };
         reader.readAsDataURL(file);
       });
@@ -274,14 +258,14 @@
     setupInput('uploadWatch', watchOverlay, 'watchBtn', 'Watch');
     setupInput('uploadGoggles', gogglesOverlay, 'gogglesBtn', 'Goggles');
 
-    // Camera setup
+    // Camera
     navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
       .then(stream => {
         video.srcObject = stream;
-        statusBar.textContent = 'Camera ready - Upload an item';
+        statusBar.textContent = 'Camera ready';
       })
       .catch(err => {
-        statusBar.textContent = 'Camera access denied';
+        statusBar.textContent = 'Camera error';
         console.error('Camera error:', err);
       });
 
@@ -294,12 +278,15 @@
     pose.setOptions({
       modelComplexity: 1,
       smoothLandmarks: true,
-      minDetectionConfidence: 0.3,
-      minTrackingConfidence: 0.3
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
     });
     
     pose.onResults(results => {
       latestPose = results.poseLandmarks;
+      if (results.poseLandmarks) {
+        statusBar.textContent = 'Pose detected';
+      }
     });
 
     new Camera(video, {
@@ -309,6 +296,8 @@
     }).start();
 
     function updateOverlays() {
+      frameCount++;
+      
       if (!latestPose || !activeOverlay) {
         requestAnimationFrame(updateOverlays);
         return;
@@ -317,42 +306,71 @@
       const w = video.clientWidth;
       const h = video.clientHeight;
 
-      // Helper function with improved smoothing
-      const P = i => {
-        const smoothed = smoothLandmark(i, latestPose[i]);
-        if (!smoothed) return null;
+      // Get landmarks with flipped coordinates
+      const getLandmark = i => {
+        const p = latestPose[i];
         return { 
-          x: (1 - smoothed.x) * w, 
-          y: smoothed.y * h, 
-          v: smoothed.visibility 
+          x: (1 - p.x) * w, 
+          y: p.y * h, 
+          v: p.visibility 
         };
       };
 
-      // Only update active overlay
       if (activeOverlay === 'Shirt') {
-        const ls = P(11), rs = P(12), lh = P(23), rh = P(24);
+        const ls = getLandmark(11); // left shoulder
+        const rs = getLandmark(12); // right shoulder
+        const lh = getLandmark(23); // left hip
+        const rh = getLandmark(24); // right hip
         
-        if (ls && rs && lh && rh && ls.v > 0.5 && rs.v > 0.5) {
-          const shoulderCenterX = (ls.x + rs.x) / 2;
-          const shoulderCenterY = (ls.y + rs.y) / 2;
-          const hipCenterY = (lh.y + rh.y) / 2;
+        if (ls.v > 0.5 && rs.v > 0.5 && lh.v > 0.5 && rh.v > 0.5) {
+          // Calculate torso center and dimensions
+          const torsoTopX = (ls.x + rs.x) / 2;
+          const torsoTopY = (ls.y + rs.y) / 2;
+          const torsoBottomX = (lh.x + rh.x) / 2;
+          const torsoBottomY = (lh.y + rh.y) / 2;
           
-          const torsoHeight = Math.abs(hipCenterY - shoulderCenterY) * 1.5;
-          const shoulderWidth = Math.abs(rs.x - ls.x) * 1.4;
-          const shoulderAngle = Math.atan2(rs.y - ls.y, rs.x - ls.x) * 180 / Math.PI;
+          // Shirt dimensions
+          const shirtWidth = Math.abs(rs.x - ls.x) * 1.8;
+          const shirtHeight = Math.abs(torsoBottomY - torsoTopY) * 1.4;
           
+          // Shirt center position
+          const shirtCenterX = (torsoTopX + torsoBottomX) / 2;
+          const shirtCenterY = (torsoTopY + torsoBottomY) / 2;
+          
+          // Rotation based on shoulder line
+          const angle = Math.atan2(rs.y - ls.y, rs.x - ls.x) * 180 / Math.PI;
+          
+          // Apply to shirt overlay
           Object.assign(shirtOverlay.style, {
-            width: `${shoulderWidth}px`,
-            height: `${torsoHeight}px`,
-            left: `${shoulderCenterX - shoulderWidth/2}px`,
-            top: `${shoulderCenterY - torsoHeight/2}px`,
-            transform: `rotate(${shoulderAngle}deg)`
+            left: `${shirtCenterX - shirtWidth/2}px`,
+            top: `${shirtCenterY - shirtHeight/2}px`,
+            width: `${shirtWidth}px`,
+            height: `${shirtHeight}px`,
+            transform: `rotate(${angle}deg)`,
+            transformOrigin: 'center center'
           });
+          
+          // Debug info
+          if (frameCount % 30 === 0) {
+            debugInfo.innerHTML = `
+              Shirt tracking:<br>
+              Size: ${shirtWidth.toFixed(0)}×${shirtHeight.toFixed(0)}<br>
+              Pos: ${shirtCenterX.toFixed(0)},${shirtCenterY.toFixed(0)}<br>
+              Angle: ${angle.toFixed(1)}°
+            `;
+            console.log('Shirt position:', {
+              center: [shirtCenterX, shirtCenterY],
+              size: [shirtWidth, shirtHeight],
+              angle: angle
+            });
+          }
+        } else {
+          debugInfo.textContent = 'Low visibility landmarks';
         }
       } 
       else if (activeOverlay === 'Watch') {
-        const rw = P(16);
-        if (rw && rw.v > 0.5) {
+        const rw = getLandmark(16);
+        if (rw.v > 0.5) {
           const S = w * 0.12;
           Object.assign(watchOverlay.style, {
             width: `${S}px`,
@@ -361,11 +379,15 @@
             top: `${rw.y - S/2}px`,
             transform: 'rotate(0deg)'
           });
+          
+          if (frameCount % 30 === 0) {
+            debugInfo.textContent = `Watch: ${rw.x.toFixed(0)},${rw.y.toFixed(0)}`;
+          }
         }
       } 
       else if (activeOverlay === 'Goggles') {
-        const le = P(2), re = P(5);
-        if (le && re && le.v > 0.5 && re.v > 0.5) {
+        const le = getLandmark(2), re = getLandmark(5);
+        if (le.v > 0.5 && re.v > 0.5) {
           const cx = (le.x + re.x) / 2;
           const cy = (le.y + re.y) / 2;
           const D = Math.abs(re.x - le.x);
@@ -379,6 +401,10 @@
             top: `${cy - GH/2}px`,
             transform: 'rotate(0deg)'
           });
+          
+          if (frameCount % 30 === 0) {
+            debugInfo.textContent = `Goggles: ${cx.toFixed(0)},${cy.toFixed(0)}`;
+          }
         }
       }
 
