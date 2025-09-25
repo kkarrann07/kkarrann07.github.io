@@ -220,7 +220,29 @@
       border-radius: 10px;
       font-size: 0.8rem;
       z-index: 3;
-      max-width: 200px;
+      max-width: 250px;
+    }
+    
+    .test-controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 3;
+    }
+    
+    button {
+      padding: 8px 12px;
+      margin: 2px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    
+    button:hover {
+      background: rgba(0,0,0,0.9);
     }
     
     .emoji {
@@ -304,6 +326,12 @@
         Pose: Waiting...<br>
         Overlays: 0/3
       </div>
+      <div class="test-controls">
+        <button id="testShirt">Test Shirt</button>
+        <button id="testWatch">Test Watch</button>
+        <button id="testGoggles">Test Goggles</button>
+        <button id="resetTest">Reset Test</button>
+      </div>
     </div>
   </section>
 
@@ -323,6 +351,9 @@
     let gogglesImg = new Image();
     let shirtLoaded = false, watchLoaded = false, gogglesLoaded = false;
 
+    // Test mode
+    let testMode = null;
+
     // Debug variables
     let frameCount = 0;
     let poseDetected = false;
@@ -332,6 +363,27 @@
     let isDragging = false;
     let startX = 0;
     let currentRotation = 0;
+
+    // Test buttons
+    document.getElementById('testShirt').addEventListener('click', () => {
+      testMode = 'shirt';
+      console.log('Test mode: shirt');
+    });
+    
+    document.getElementById('testWatch').addEventListener('click', () => {
+      testMode = 'watch';
+      console.log('Test mode: watch');
+    });
+    
+    document.getElementById('testGoggles').addEventListener('click', () => {
+      testMode = 'goggles';
+      console.log('Test mode: goggles');
+    });
+    
+    document.getElementById('resetTest').addEventListener('click', () => {
+      testMode = null;
+      console.log('Test mode: off');
+    });
 
     function loadImage(input, imageObj, flagVar, overlayType) {
       input.addEventListener('change', e => {
@@ -467,6 +519,36 @@
       ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
       ctx.restore();
 
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // TEST MODE: Draw colored rectangles first to verify positioning
+      if (testMode) {
+        ctx.save();
+        
+        if (testMode === 'shirt') {
+          ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+          ctx.fillRect(w/2 - 100, h/2 - 100, 200, 200);
+          ctx.fillStyle = 'white';
+          ctx.font = '20px Arial';
+          ctx.fillText('SHIRT TEST', w/2 - 50, h/2);
+        } else if (testMode === 'watch') {
+          ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+          ctx.fillRect(w/2 + 100, h/2, 80, 80);
+          ctx.fillStyle = 'white';
+          ctx.font = '16px Arial';
+          ctx.fillText('WATCH', w/2 + 110, h/2 + 40);
+        } else if (testMode === 'goggles') {
+          ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
+          ctx.fillRect(w/2 - 80, h/2 - 150, 160, 60);
+          ctx.fillStyle = 'white';
+          ctx.font = '16px Arial';
+          ctx.fillText('GOGGLES', w/2 - 35, h/2 - 115);
+        }
+        
+        ctx.restore();
+      }
+
       // Update debug info
       if (frameCount % 30 === 0) {
         const loadedCount = [shirtLoaded, watchLoaded, gogglesLoaded].filter(Boolean).length;
@@ -474,7 +556,9 @@
           Pose: ${poseDetected ? 'DETECTED' : 'NONE'}<br>
           Overlays: ${loadedCount}/3<br>
           Frame: ${frameCount}<br>
-          Drawing: ${overlaysDrawn}
+          Drawing: ${overlaysDrawn}<br>
+          Test: ${testMode || 'OFF'}<br>
+          Canvas: ${w}x${h}
         `;
       }
 
@@ -482,8 +566,6 @@
         return;
       }
 
-      const w = canvas.width;
-      const h = canvas.height;
       const landmarks = latestResults.poseLandmarks;
 
       // Draw pose skeleton for debugging
@@ -497,96 +579,126 @@
       const rightEye = landmarks[5];
       const leftShoulder = landmarks[11];
       const rightShoulder = landmarks[12];
-      const leftElbow = landmarks[13];
-      const rightElbow = landmarks[14];
       const leftWrist = landmarks[15];
       const rightWrist = landmarks[16];
       const leftHip = landmarks[23];
       const rightHip = landmarks[24];
 
-      // Draw debug dots for key landmarks
-      function drawLandmark(landmark, color = 'red') {
+      // Function to draw landmark and return flipped coordinates
+      function drawAndGetLandmark(landmark, color = 'red') {
         if (landmark && landmark.visibility > 0.3) {
-          ctx.fillStyle = color;
           const x = (1 - landmark.x) * w; // Flip x coordinate
           const y = landmark.y * h;
+          
+          // Draw debug dot
+          ctx.fillStyle = color;
           ctx.fillRect(x - 3, y - 3, 6, 6);
-          return { x: x / w, y: y / h, visibility: landmark.visibility };
+          
+          return { x, y, visibility: landmark.visibility };
         }
         return null;
       }
 
-      // Draw key landmarks
-      const flippedNose = drawLandmark(nose, 'blue');
-      const flippedLeftEye = drawLandmark(leftEye, 'green');
-      const flippedRightEye = drawLandmark(rightEye, 'green');
-      const flippedLeftShoulder = drawLandmark(leftShoulder, 'yellow');
-      const flippedRightShoulder = drawLandmark(rightShoulder, 'yellow');
-      const flippedLeftHip = drawLandmark(leftHip, 'orange');
-      const flippedRightHip = drawLandmark(rightHip, 'orange');
-      const flippedRightWrist = drawLandmark(rightWrist, 'purple');
+      // Get flipped landmark coordinates
+      const flippedNose = drawAndGetLandmark(nose, 'blue');
+      const flippedLeftEye = drawAndGetLandmark(leftEye, 'green');
+      const flippedRightEye = drawAndGetLandmark(rightEye, 'green');
+      const flippedLeftShoulder = drawAndGetLandmark(leftShoulder, 'yellow');
+      const flippedRightShoulder = drawAndGetLandmark(rightShoulder, 'yellow');
+      const flippedLeftHip = drawAndGetLandmark(leftHip, 'orange');
+      const flippedRightHip = drawAndGetLandmark(rightHip, 'orange');
+      const flippedRightWrist = drawAndGetLandmark(rightWrist, 'purple');
 
-      // SHIRT OVERLAY
-      if (shirtLoaded && flippedLeftShoulder && flippedRightShoulder && flippedLeftHip && flippedRightHip) {
-        const centerX = (flippedLeftShoulder.x + flippedRightShoulder.x) / 2 * w;
-        const centerY = (flippedLeftShoulder.y + flippedRightShoulder.y) / 2 * h;
-        const hipY = (flippedLeftHip.y + flippedRightHip.y) / 2 * h;
-
-        const torsoH = Math.abs(hipY - centerY) * 2.5; // Increased multiplier
-        const torsoW = Math.abs(flippedRightShoulder.x - flippedLeftShoulder.x) * w * 3.0; // Increased
-
-        // Calculate rotation
-        const dx = (flippedRightShoulder.x - flippedLeftShoulder.x) * w;
-        const dy = (flippedRightShoulder.y - flippedLeftShoulder.y) * h;
-        const angle = Math.atan2(dy, dx);
-
-        ctx.save();
-        ctx.globalAlpha = 0.9;
-        ctx.translate(centerX, centerY + torsoH / 3);
-        ctx.rotate(angle);
-        ctx.drawImage(shirtImg, -torsoW / 2, -torsoH / 2, torsoW, torsoH);
-        ctx.restore();
+      // ACTUAL OVERLAYS - only draw if not in test mode
+      if (!testMode) {
         
-        overlaysDrawn++;
-        console.log(`Shirt drawn: center(${centerX.toFixed(0)}, ${(centerY + torsoH / 3).toFixed(0)}), size(${torsoW.toFixed(0)}, ${torsoH.toFixed(0)}), angle: ${(angle * 180 / Math.PI).toFixed(1)}°`);
-      }
+        // SHIRT OVERLAY
+        if (shirtLoaded && flippedLeftShoulder && flippedRightShoulder && flippedLeftHip && flippedRightHip) {
+          const centerX = (flippedLeftShoulder.x + flippedRightShoulder.x) / 2;
+          const centerY = (flippedLeftShoulder.y + flippedRightShoulder.y) / 2;
+          const hipY = (flippedLeftHip.y + flippedRightHip.y) / 2;
 
-      // WATCH OVERLAY
-      if (watchLoaded && flippedRightWrist) {
-        const wx = flippedRightWrist.x * w;
-        const wy = flippedRightWrist.y * h;
-        const watchW = w * 0.2; // Increased size
-        const watchH = watchW * (watchImg.height / watchImg.width);
-        
-        ctx.save();
-        ctx.globalAlpha = 0.9;
-        ctx.translate(wx, wy);
-        ctx.drawImage(watchImg, -watchW / 2, -watchH / 2, watchW, watchH);
-        ctx.restore();
-        
-        overlaysDrawn++;
-        console.log(`Watch drawn at: (${wx.toFixed(0)}, ${wy.toFixed(0)}), size: ${watchW.toFixed(0)}x${watchH.toFixed(0)}`);
-      }
+          const torsoH = Math.abs(hipY - centerY) * 2.5;
+          const torsoW = Math.abs(flippedRightShoulder.x - flippedLeftShoulder.x) * 3.0;
 
-      // GOGGLES OVERLAY
-      if (gogglesLoaded && flippedLeftEye && flippedRightEye) {
-        const eyeCenterX = (flippedLeftEye.x + flippedRightEye.x) / 2 * w;
-        const eyeCenterY = (flippedLeftEye.y + flippedRightEye.y) / 2 * h;
+          // Calculate rotation
+          const dx = flippedRightShoulder.x - flippedLeftShoulder.x;
+          const dy = flippedRightShoulder.y - flippedLeftShoulder.y;
+          const angle = Math.atan2(dy, dx);
 
-        const eyeDistance = Math.abs(flippedLeftEye.x - flippedRightEye.x) * w;
-        const gogglesW = eyeDistance * 4.0; // Increased multiplier
-        const gogglesH = gogglesW * (gogglesImg.height / gogglesImg.width);
+          // Ensure minimum size
+          const finalW = Math.max(torsoW, 150);
+          const finalH = Math.max(torsoH, 200);
 
-        const verticalOffset = gogglesH * 0.1;
+          ctx.save();
+          ctx.globalAlpha = 0.8;
+          ctx.translate(centerX, centerY + finalH / 3);
+          ctx.rotate(angle);
+          
+          // Draw with bounds checking
+          if (centerX > 0 && centerX < w && centerY > 0 && centerY < h) {
+            ctx.drawImage(shirtImg, -finalW / 2, -finalH / 2, finalW, finalH);
+            overlaysDrawn++;
+            
+            if (frameCount % 60 === 0) {
+              console.log(`✅ Shirt drawn: center(${centerX.toFixed(0)}, ${centerY.toFixed(0)}), size(${finalW.toFixed(0)}, ${finalH.toFixed(0)})`);
+            }
+          }
+          
+          ctx.restore();
+        }
 
-        ctx.save();
-        ctx.globalAlpha = 0.9;
-        ctx.translate(eyeCenterX, eyeCenterY - verticalOffset);
-        ctx.drawImage(gogglesImg, -gogglesW / 2, -gogglesH / 2, gogglesW, gogglesH);
-        ctx.restore();
-        
-        overlaysDrawn++;
-        console.log(`Goggles drawn at: (${eyeCenterX.toFixed(0)}, ${(eyeCenterY - verticalOffset).toFixed(0)}), size: ${gogglesW.toFixed(0)}x${gogglesH.toFixed(0)}`);
+        // WATCH OVERLAY
+        if (watchLoaded && flippedRightWrist) {
+          const wx = flippedRightWrist.x;
+          const wy = flippedRightWrist.y;
+          const watchW = Math.max(w * 0.15, 80);
+          const watchH = watchW * (watchImg.height / watchImg.width);
+          
+          ctx.save();
+          ctx.globalAlpha = 0.8;
+          
+          // Draw with bounds checking
+          if (wx > 0 && wx < w && wy > 0 && wy < h) {
+            ctx.translate(wx, wy);
+            ctx.drawImage(watchImg, -watchW / 2, -watchH / 2, watchW, watchH);
+            overlaysDrawn++;
+            
+            if (frameCount % 60 === 0) {
+              console.log(`✅ Watch drawn: pos(${wx.toFixed(0)}, ${wy.toFixed(0)}), size(${watchW.toFixed(0)}, ${watchH.toFixed(0)})`);
+            }
+          }
+          
+          ctx.restore();
+        }
+
+        // GOGGLES OVERLAY
+        if (gogglesLoaded && flippedLeftEye && flippedRightEye) {
+          const eyeCenterX = (flippedLeftEye.x + flippedRightEye.x) / 2;
+          const eyeCenterY = (flippedLeftEye.y + flippedRightEye.y) / 2;
+
+          const eyeDistance = Math.abs(flippedLeftEye.x - flippedRightEye.x);
+          const gogglesW = Math.max(eyeDistance * 3.0, 120);
+          const gogglesH = gogglesW * (gogglesImg.height / gogglesImg.width);
+
+          const verticalOffset = gogglesH * 0.1;
+
+          ctx.save();
+          ctx.globalAlpha = 0.8;
+          
+          // Draw with bounds checking
+          if (eyeCenterX > 0 && eyeCenterX < w && eyeCenterY > 0 && eyeCenterY < h) {
+            ctx.translate(eyeCenterX, eyeCenterY - verticalOffset);
+            ctx.drawImage(gogglesImg, -gogglesW / 2, -gogglesH / 2, gogglesW, gogglesH);
+            overlaysDrawn++;
+            
+            if (frameCount % 60 === 0) {
+              console.log(`✅ Goggles drawn: center(${eyeCenterX.toFixed(0)}, ${(eyeCenterY - verticalOffset).toFixed(0)}), size(${gogglesW.toFixed(0)}, ${gogglesH.toFixed(0)})`);
+            }
+          }
+          
+          ctx.restore();
+        }
       }
     }
 
