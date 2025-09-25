@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ChechIT - AI Fashion Try-On</title>
+  <title>ChechIT – Try-On Shirts & Goggles</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -51,6 +51,7 @@
       height: 480px;
       border-radius: 12px;
       z-index: 2;
+      pointer-events: none;
     }
     input[type="file"] {
       margin-top: 10px;
@@ -88,10 +89,31 @@
     .rotator:active {
       cursor: grabbing;
     }
+    /* For separate columns of overlays */
+    .overlays {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .overlay-column {
+      width: 200px;
+    }
+    .overlay-column h3 {
+      margin-bottom: 10px;
+    }
+    .overlay-column img {
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    .toggle-btn {
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
-  <header>👗 ChechIT – AI Fashion Try-On</header>
+  <header>👗 ChechIT – Try-On Shirts & Goggles</header>
 
   <section>
     <h2>🔍 AI Fashion Search</h2>
@@ -100,27 +122,36 @@
   </section>
 
   <section>
-    <h2>🖼 Upload Your Clothing Image</h2>
-    <p>Choose a shirt/top image (preferably transparent PNG).</p>
-    <input type="file" id="upload" accept="image/*" />
-    <div class="static-shirt" aria-label="Static Shirt Viewer">
-      <p>🖼 Preview (3D Rotator):</p>
-      <div class="rotator" id="rotator">
-        <img id="staticPreview" src="" alt="Uploaded shirt preview" />
+    <h2>🖼 Upload Your Garments</h2>
+    <p>Upload a transparent PNG for shirt and another for goggles.</p>
+    <input type="file" id="uploadShirt" accept="image/png" /> Shirt <br />
+    <input type="file" id="uploadGoggles" accept="image/png" /> Goggles <br />
+
+    <!-- Static previews -->
+    <div class="overlays">
+      <div class="overlay-column">
+        <h3>Shirt Preview</h3>
+        <img id="previewShirt" src="" alt="Shirt Preview" />
+        <button class="toggle-btn" id="toggleShirt">Toggle Shirt</button>
+      </div>
+      <div class="overlay-column">
+        <h3>Goggles Preview</h3>
+        <img id="previewGoggles" src="" alt="Goggles Preview" />
+        <button class="toggle-btn" id="toggleGoggles">Toggle Goggles</button>
       </div>
     </div>
   </section>
 
   <section>
-    <h2>🕶 AR Clothing Try-On</h2>
-    <p>Turn on your camera. Your uploaded shirt will overlay your body in real time.</p>
+    <h2>🕶 AR Try-On</h2>
+    <p>Camera + pose overlay. Use toggles to show/hide shirt or goggles.</p>
     <div class="ar-container">
       <video id="video" autoplay playsinline></video>
       <canvas id="output" width="640" height="480"></canvas>
     </div>
   </section>
 
-  <!-- MediaPipe Libraries -->
+  <!-- MediaPipe -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
 
@@ -129,106 +160,86 @@
     const canvasElement = document.getElementById('output');
     const ctx = canvasElement.getContext('2d');
 
-    const staticPreview = document.getElementById('staticPreview');
-    const rotator = document.getElementById('rotator');
+    const uploadShirt = document.getElementById('uploadShirt');
+    const uploadGoggles = document.getElementById('uploadGoggles');
+    const previewShirt = document.getElementById('previewShirt');
+    const previewGoggles = document.getElementById('previewGoggles');
+    const toggleShirtBtn = document.getElementById('toggleShirt');
+    const toggleGogglesBtn = document.getElementById('toggleGoggles');
 
-    let shirtImage = new Image();
+    let shirtImg = new Image();
+    let gogglesImg = new Image();
     let shirtLoaded = false;
+    let gogglesLoaded = false;
+    let showShirt = true;
+    let showGoggles = true;
 
-    // Upload and prepare the shirt image
-    document.getElementById('upload').addEventListener('change', (event) => {
-      const file = event.target.files[0];
+    uploadShirt.addEventListener('change', (e) => {
+      const file = e.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
-      reader.onload = function (e) {
-        const uploadedImage = new Image();
-        uploadedImage.onload = () => {
-          // Resize to max 512px for performance
-          const maxSize = 512;
-          const ratio = Math.min(maxSize / uploadedImage.width, maxSize / uploadedImage.height, 1);
-          const offCanvas = document.createElement('canvas');
-          offCanvas.width = uploadedImage.width * ratio;
-          offCanvas.height = uploadedImage.height * ratio;
-          const offCtx = offCanvas.getContext('2d');
-          offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
-          offCtx.drawImage(uploadedImage, 0, 0, offCanvas.width, offCanvas.height);
-
-          shirtImage.src = offCanvas.toDataURL("image/png");
-          staticPreview.src = shirtImage.src;
-        };
-        uploadedImage.onerror = () => {
-          shirtLoaded = false;
-          alert("Could not load image. Please try a transparent PNG.");
-        };
-        uploadedImage.src = e.target.result;
+      reader.onload = (ev) => {
+        shirtImg.src = ev.target.result;
+        previewShirt.src = ev.target.result;
       };
       reader.readAsDataURL(file);
     });
+    shirtImg.onload = () => { shirtLoaded = true; };
 
-    shirtImage.onload = () => {
-      shirtLoaded = true;
-    };
+    uploadGoggles.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        gogglesImg.src = ev.target.result;
+        previewGoggles.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+    gogglesImg.onload = () => { gogglesLoaded = true; };
 
-    // Setup MediaPipe Pose
+    toggleShirtBtn.addEventListener('click', () => {
+      showShirt = !showShirt;
+      toggleShirtBtn.innerText = showShirt ? "Hide Shirt" : "Show Shirt";
+    });
+    toggleGogglesBtn.addEventListener('click', () => {
+      showGoggles = !showGoggles;
+      toggleGogglesBtn.innerText = showGoggles ? "Hide Goggles" : "Show Goggles";
+    });
+
     const pose = new Pose({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
     });
-
     pose.setOptions({
       modelComplexity: 1,
       smoothLandmarks: true,
       enableSegmentation: false,
       minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5,
+      minTrackingConfidence: 0.5
     });
 
-    let latestPoseResults = null;
+    let latestResults = null;
     pose.onResults((results) => {
-      latestPoseResults = results;
+      latestResults = results;
     });
 
-    // Initialize camera
     const camera = new Camera(videoElement, {
       onFrame: async () => {
         await pose.send({ image: videoElement });
       },
       width: 640,
-      height: 480,
+      height: 480
+    });
+    camera.start().catch(err => {
+      console.error("Camera start error:", err);
+      alert("Camera error: " + err.message);
     });
 
-    camera.start();
-
-    // Rotator UI (3D rotate effect)
-    let isDragging = false;
-    let startX = 0;
-    let rotationY = 0;
-
-    rotator.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      startX = e.clientX;
-      rotator.style.cursor = 'grabbing';
-    });
-
-    window.addEventListener('mouseup', () => {
-      isDragging = false;
-      rotator.style.cursor = 'grab';
-    });
-
-    window.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      const dx = e.clientX - startX;
-      startX = e.clientX;
-      rotationY += dx * 0.5; // sensitivity
-      staticPreview.style.transform = `rotateY(${rotationY}deg)`;
-    });
-
-    // Main animation/render loop
     function animate() {
       requestAnimationFrame(animate);
 
-      if (!latestPoseResults) {
-        // No pose detected yet, just draw flipped video
+      if (!latestResults) {
+        // Just draw video mirrored
         ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
         ctx.save();
         ctx.scale(-1, 1);
@@ -237,15 +248,15 @@
         return;
       }
 
-      // Draw flipped video frame
+      // Draw mirrored video
       ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
       ctx.save();
       ctx.scale(-1, 1);
-      ctx.drawImage(latestPoseResults.image, -canvasElement.width, 0, canvasElement.width, canvasElement.height);
+      ctx.drawImage(latestResults.image, -canvasElement.width, 0, canvasElement.width, canvasElement.height);
       ctx.restore();
 
-      if (latestPoseResults.poseLandmarks && shirtLoaded) {
-        const lm = latestPoseResults.poseLandmarks.map(p => ({
+      if (latestResults.poseLandmarks) {
+        const lm = latestResults.poseLandmarks.map(p => ({
           x: 1 - p.x,
           y: p.y,
           z: p.z,
@@ -256,12 +267,54 @@
         const rightShoulder = lm[12];
         const leftHip = lm[23];
         const rightHip = lm[24];
+        const nose = lm[0];  // For goggles, maybe use nose/eyes region
 
         if (leftShoulder && rightShoulder && leftHip && rightHip) {
           const w = canvasElement.width;
           const h = canvasElement.height;
 
-          const centerX = ((leftShoulder.x + rightShoulder.x) / 2) * w;
-          const centerY = ((leftShoulder.y + rightShoulder.y) / 2) * h;
+          // Shirt overlay
+          if (showShirt && shirtLoaded) {
+            const centerX = ((leftShoulder.x + rightShoulder.x) / 2) * w;
+            const centerY = ((leftShoulder.y + rightShoulder.y) / 2) * h;
 
-          const hipY = ((
+            const hipY = ((leftHip.y + rightHip.y) / 2) * h;
+            const torsoHeight = hipY - centerY;
+
+            const dx = (rightShoulder.x - leftShoulder.x) * w;
+            const dy = (rightShoulder.y - leftShoulder.y) * h;
+            const shoulderDist = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx);
+
+            const shirtWidth = shoulderDist * 1.5;
+            const shirtHeight = torsoHeight * 2.1;
+            const shirtY = centerY + torsoHeight * 0.05;
+
+            ctx.save();
+            ctx.translate(centerX, shirtY + shirtHeight / 2);
+            ctx.rotate(angle);
+            ctx.drawImage(shirtImg, -shirtWidth / 2, -shirtHeight / 2, shirtWidth, shirtHeight);
+            ctx.restore();
+          }
+
+          // Goggles overlay
+          if (showGoggles && gogglesLoaded && nose) {
+            // Approximate placement: center near nose, scale small
+            const gx = nose.x * w;
+            const gy = nose.y * h;
+            const gWidth = (rightShoulder.x - leftShoulder.x) * w * 0.6;
+            const gHeight = gWidth * (gogglesImg.height / gogglesImg.width);
+
+            ctx.save();
+            ctx.translate(gx, gy);
+            ctx.drawImage(gogglesImg, -gWidth / 2, -gHeight / 2, gWidth, gHeight);
+            ctx.restore();
+          }
+        }
+      }
+    }
+
+    animate();
+  </script>
+</body>
+</html>
