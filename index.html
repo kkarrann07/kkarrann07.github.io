@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>karann</title>
+  <title>ChechIT – AR Try-On</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:Arial,sans-serif; background:#f7f7f7; text-align:center; }
@@ -71,7 +71,7 @@
     // MediaPipe Pose
     let latestPose = null;
     const pose = new Pose({
-      locateFile: f => https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}
+      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}`
     });
     pose.setOptions({
       modelComplexity:1, smoothLandmarks:true,
@@ -101,9 +101,9 @@
         const H = Math.abs(hipY - cy) * 2.0, W = Math.hypot(rs.x - ls.x, rs.y - ls.y) * 1.5;
         const angle = Math.atan2(rs.y - ls.y, rs.x - ls.x) * 180 / Math.PI;
         Object.assign(shirtOverlay.style, {
-          width: ${W}px, height: ${H}px,
-          left: ${cx - W/2}px, top: ${cy - H/2}px,
-          transform: rotate(${angle}deg)
+          width: `${W}px`, height: `${H}px`,
+          left: `${cx - W/2}px`, top: `${cy - H/2}px`,
+          transform: `rotate(${angle}deg)`
         });
       }
 
@@ -111,8 +111,8 @@
       if (watchOverlay.src && rw.v > 0.5) {
         const S = w * 0.12;
         Object.assign(watchOverlay.style, {
-          width: ${S}px, height: ${S}px,
-          left: ${rw.x - S/2}px, top: ${rw.y - S/2}px,
+          width: `${S}px`, height: `${S}px`,
+          left: `${rw.x - S/2}px`, top: `${rw.y - S/2}px`,
           transform: 'rotate(0deg)'
         });
       }
@@ -123,8 +123,8 @@
         const D = Math.hypot(re.x - le.x, re.y - le.y);
         const GW = D * 2.5, GH = GW * (gogglesOverlay.naturalHeight / gogglesOverlay.naturalWidth);
         Object.assign(gogglesOverlay.style, {
-          width: ${GW}px, height: ${GH}px,
-          left: ${cx - GW/2}px, top: ${cy - GH/2}px,
+          width: `${GW}px`, height: `${GH}px`,
+          left: `${cx - GW/2}px`, top: `${cy - GH/2}px`,
           transform: 'rotate(0deg)'
         });
       }
