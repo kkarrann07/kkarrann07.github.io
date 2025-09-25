@@ -2,23 +2,97 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ChechIT – AR Try‑On with OpenCV.js</title>
+  <title>ChechIT – AR Try‑On (Pose + Overlays)</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; text-align: center; }
-    header { background: #222; color: #fff; padding: 1rem; font-size: 1.4rem; font-weight: bold; }
-    section { padding: 2rem; }
-    .ar-container { position: relative; width: 640px; height: 480px; margin: auto; }
-    video { position: absolute; top: 0; left: 0; width: 640px; height: 480px; border-radius: 12px; transform: scaleX(-1); z-index: 1; object-fit: cover; }
-    canvas { position: absolute; top: 0; left: 0; width: 640px; height: 480px; border-radius: 12px; z-index: 2; pointer-events: none; }
-    input[type="file"] { margin-top: 10px; }
-    .static-shirt { margin-top: 1rem; perspective: 800px; width: 320px; margin-left: auto; margin-right: auto; user-select: none; }
-    .rotator { width: 100%; height: 400px; border: 1px solid #ccc; border-radius: 12px; background: #fff; display: flex; justify-content: center; align-items: center; cursor: grab; transition: transform 0.1s ease-out; }
-    .rotator img { max-width: 100%; max-height: 100%; pointer-events: none; user-select: none; border-radius: 12px; backface-visibility: hidden; transform-style: preserve-3d; }
-    .rotator:active { cursor: grabbing; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+    header {
+      background: #222;
+      color: #fff;
+      padding: 1rem;
+      font-size: 1.4rem;
+      font-weight: bold;
+    }
+    section {
+      padding: 2rem;
+    }
+    iframe {
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .ar-container {
+      position: relative;
+      width: 640px;
+      height: 480px;
+      margin: auto;
+    }
+    video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 640px;
+      height: 480px;
+      border-radius: 12px;
+      transform: scaleX(-1);
+      z-index: 1;
+      object-fit: cover;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 640px;
+      height: 480px;
+      border-radius: 12px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    input[type="file"] {
+      margin-top: 10px;
+    }
+    .static-shirt {
+      margin-top: 1rem;
+      perspective: 800px;
+      width: 320px;
+      margin-left: auto;
+      margin-right: auto;
+      user-select: none;
+    }
+    .rotator {
+      width: 100%;
+      height: 400px;
+      border-radius: 12px;
+      border: 1px solid #ccc;
+      overflow: hidden;
+      background: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: grab;
+      transition: transform 0.1s ease-out;
+    }
+    .rotator img {
+      max-width: 100%;
+      max-height: 100%;
+      pointer-events: none;
+      user-select: none;
+      border-radius: 12px;
+      backface-visibility: hidden;
+      transform-style: preserve-3d;
+    }
+    .rotator:active {
+      cursor: grabbing;
+    }
   </style>
 </head>
 <body>
-  <header>👗 ChechIT – AR Try‑On (OpenCV)</header>
+  <header>👗 ChechIT – AR Try‑On</header>
 
   <section>
     <h2>🔍 AI Fashion Search</h2>
@@ -28,12 +102,12 @@
 
   <section>
     <h2>🖼 Upload Overlays</h2>
-    <p>PNG overlays (transparent) for shirt, watch, goggles.</p>
-    <input type="file" id="uploadShirt" accept="image/png" /> Shirt <br>
-    <input type="file" id="uploadWatch" accept="image/png" /> Watch <br>
-    <input type="file" id="uploadGoggles" accept="image/png" /> Goggles <br>
+    <p>Transparent PNG overlays for shirt, watch, goggles.</p>
+    <input type="file" id="uploadShirt" accept="image/png" /> Shirt <br />
+    <input type="file" id="uploadWatch" accept="image/png" /> Watch <br />
+    <input type="file" id="uploadGoggles" accept="image/png" /> Goggles <br />
     <div class="static-shirt">
-      <p>Preview (drag to rotate):</p>
+      <p>🖼 Preview (3D Rotator):</p>
       <div class="rotator" id="rotator">
         <img id="staticPreview" src="" alt="Overlay preview" />
       </div>
@@ -42,113 +116,182 @@
 
   <section>
     <h2>🕶 AR Try-On</h2>
+    <p>Camera + Pose Overlay: shirt, watch, goggles.</p>
     <div class="ar-container">
       <video id="video" autoplay playsinline></video>
-      <canvas id="overlayCanvas"></canvas>
+      <canvas id="overlayCanvas" width="640" height="480"></canvas>
     </div>
   </section>
 
-  <!-- OpenCV.js -->
-  <script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvReady();" ></script>
+  <!-- MediaPipe libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
 
   <script>
-    let video = document.getElementById('video');
-    let canvas = document.getElementById('overlayCanvas');
-    let ctx = canvas.getContext('2d');
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('overlayCanvas');
+    const ctx = canvas.getContext('2d');
 
-    // Overlay images
+    // Overlays
     let shirtImg = new Image();
     let watchImg = new Image();
     let gogglesImg = new Image();
     let shirtLoaded = false, watchLoaded = false, gogglesLoaded = false;
 
     document.getElementById('uploadShirt').addEventListener('change', (e) => {
-      let file = e.target.files[0];
+      const file = e.target.files[0];
       if (!file) return;
-      let reader = new FileReader();
+      const reader = new FileReader();
       reader.onload = (ev) => {
         shirtImg.src = ev.target.result;
       };
       reader.readAsDataURL(file);
     });
-    shirtImg.onload = () => shirtLoaded = true;
+    shirtImg.onload = () => { shirtLoaded = true; };
 
     document.getElementById('uploadWatch').addEventListener('change', (e) => {
-      let file = e.target.files[0];
+      const file = e.target.files[0];
       if (!file) return;
-      let reader = new FileReader();
+      const reader = new FileReader();
       reader.onload = (ev) => {
         watchImg.src = ev.target.result;
       };
       reader.readAsDataURL(file);
     });
-    watchImg.onload = () => watchLoaded = true;
+    watchImg.onload = () => { watchLoaded = true; };
 
     document.getElementById('uploadGoggles').addEventListener('change', (e) => {
-      let file = e.target.files[0];
+      const file = e.target.files[0];
       if (!file) return;
-      let reader = new FileReader();
+      const reader = new FileReader();
       reader.onload = (ev) => {
         gogglesImg.src = ev.target.result;
       };
       reader.readAsDataURL(file);
     });
-    gogglesImg.onload = () => gogglesLoaded = true;
+    gogglesImg.onload = () => { gogglesLoaded = true; };
 
-    function onOpenCvReady() {
-      console.log("OpenCV.js is ready");
+    let latestResults = null;
 
-      // Start video stream
-      navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        .then(stream => {
-          video.srcObject = stream;
-          video.play();
-          requestAnimationFrame(processFrame);
-        })
-        .catch(err => {
-          alert("Camera error: " + err);
-          console.error(err);
-        });
-    }
+    const pose = new Pose({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
+    });
+    pose.setOptions({
+      modelComplexity: 1,
+      smoothLandmarks: true,
+      enableSegmentation: false,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5,
+    });
+    pose.onResults((results) => {
+      latestResults = results;
+    });
 
-    function processFrame() {
-      if (video.readyState < 2) {
-        requestAnimationFrame(processFrame);
+    const camera = new Camera(video, {
+      onFrame: async () => {
+        await pose.send({ image: video });
+      },
+      width: 640,
+      height: 480,
+    });
+    camera.start().catch(err => {
+      console.error("Camera start error:", err);
+      alert("Cannot access camera: " + err.message);
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      if (!latestResults) {
+        // Just show mirrored video
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+        ctx.restore();
         return;
       }
 
-      // Draw video frame on canvas (mirror it)
+      // Draw mirrored video
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
       ctx.scale(-1, 1);
-      ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+      ctx.drawImage(latestResults.image, -canvas.width, 0, canvas.width, canvas.height);
       ctx.restore();
 
-      // Now overlay images at approximate positions
-      // For demo, place shirt at center, watch at bottom, goggles at face top
-      if (shirtLoaded) {
-        let sw = canvas.width * 0.5;
-        let sh = sw * (shirtImg.height / shirtImg.width);
-        let sx = canvas.width / 2;
-        let sy = canvas.height / 3;
-        ctx.drawImage(shirtImg, sx - sw / 2, sy - sh / 2, sw, sh);
-      }
-      if (watchLoaded) {
-        let ww = canvas.width * 0.2;
-        let wh = ww * (watchImg.height / watchImg.width);
-        let wx = canvas.width / 2;
-        let wy = canvas.height * 0.8;
-        ctx.drawImage(watchImg, wx - ww / 2, wy - wh / 2, ww, wh);
-      }
-      if (gogglesLoaded) {
-        let gw = canvas.width * 0.3;
-        let gh = gw * (gogglesImg.height / gogglesImg.width);
-        let gx = canvas.width / 2;
-        let gy = canvas.height / 5;
-        ctx.drawImage(gogglesImg, gx - gw / 2, gy - gh / 2, gw, gh);
-      }
+      const lm = latestResults.poseLandmarks.map(p => ({
+        x: 1 - p.x,
+        y: p.y,
+        z: p.z,
+        visibility: p.visibility
+      }));
 
-      requestAnimationFrame(processFrame);
+      const leftShoulder = lm[11];
+      const rightShoulder = lm[12];
+      const leftHip = lm[23];
+      const rightHip = lm[24];
+      const nose = lm[0];  // use nose for goggles approx
+
+      if (leftShoulder && rightShoulder && leftHip && rightHip) {
+        const w = canvas.width;
+        const h = canvas.height;
+
+        // Shirt overlay
+        if (shirtLoaded) {
+          const centerX = ((leftShoulder.x + rightShoulder.x) / 2) * w;
+          const centerY = ((leftShoulder.y + rightShoulder.y) / 2) * h;
+
+          const hipY = ((leftHip.y + rightHip.y) / 2) * h;
+          const torsoH = hipY - centerY;
+
+          const dx = (rightShoulder.x - leftShoulder.x) * w;
+          const dy = (rightShoulder.y - leftShoulder.y) * h;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const angle = Math.atan2(dy, dx);
+
+          const shirtW = dist * 1.5;
+          const shirtH = torsoH * 2.1;
+          const shirtY = centerY + torsoH * 0.05;
+
+          ctx.save();
+          ctx.translate(centerX, shirtY + shirtH / 2);
+          ctx.rotate(angle);
+          ctx.drawImage(shirtImg, -shirtW/2, -shirtH/2, shirtW, shirtH);
+          ctx.restore();
+        }
+
+        // Watch overlay: approximate near wrist position
+        if (watchLoaded) {
+          // choose right wrist landmark (lm[16]) as example
+          const wrist = lm[16];
+          if (wrist) {
+            const wx = wrist.x * w;
+            const wy = wrist.y * h;
+            const watchW = w * 0.2;
+            const watchH = watchW * (watchImg.height / watchImg.width);
+            ctx.save();
+            ctx.translate(wx, wy);
+            ctx.drawImage(watchImg, -watchW/2, -watchH/2, watchW, watchH);
+            ctx.restore();
+          }
+        }
+
+        // Goggles overlay
+        if (gogglesLoaded && nose) {
+          const gx = nose.x * w;
+          const gy = nose.y * h;
+          const gW = (rightShoulder.x - leftShoulder.x) * w * 0.6;
+          const gH = gW * (gogglesImg.height / gogglesImg.width);
+
+          ctx.save();
+          ctx.translate(gx, gy);
+          ctx.drawImage(gogglesImg, -gW/2, -gH/2, gW, gH);
+          ctx.restore();
+        }
+      }
     }
+
+    animate();
   </script>
 </body>
 </html>
