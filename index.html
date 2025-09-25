@@ -3,32 +3,71 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ChechIT – AR Try-On (Refactored)</title>
+<title>ChechIT – AR Try-On (MoveNet)</title>
 <style>
-  :root{
-    --bg:#f7f7f7; --card:#fff; --accent:#222; --muted:#666; --radius:12px; --max-width:1100px;
+  :root {
+    --bg: #f5f7fa;
+    --card: #fff;
+    --accent: #6a11cb;
+    --accent2: #2575fc;
+    --muted: #666;
+    --radius: 14px;
+    --max-width: 1100px;
   }
-  html, body {height:100%; margin:0; font-family:Inter,system-ui,Segoe UI,Arial,sans-serif; background:var(--bg); color:#111;}
-  .container {max-width:var(--max-width); margin:1.2rem auto; padding:1rem;}
-  header {background:var(--accent); color:#fff; padding:1rem; border-radius:8px; font-weight:700; display:flex; align-items:center; gap:12px;}
-  .grid {display:grid; grid-template-columns:1fr 420px; gap:1rem; margin-top:1rem;}
-  @media (max-width:980px){ .grid{grid-template-columns:1fr} .ar-container{width:100%;height:auto} video,canvas{width:100%;height:auto} }
-  .card {background:var(--card); border-radius:12px; padding:1rem; box-shadow:0 6px 18px rgba(0,0,0,0.06); overflow:hidden;}
-  .rotator {height:220px; border-radius:var(--radius); border:1px solid #e3e3e3; display:flex; align-items:center; justify-content:center; overflow:hidden; background:#fafafa; cursor:grab; touch-action:none;}
-  .rotator img {max-width:100%; max-height:100%; pointer-events:none; backface-visibility:hidden; transform-style:preserve-3d; transition:transform .12s linear;}
-  .ar-container {position:relative; width:640px; height:480px; border-radius:var(--radius); overflow:hidden; background:#000;}
-  video {position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; z-index:1; transform:scaleX(-1);}
-  canvas {position:absolute; top:0; left:0; width:100%; height:100%; z-index:2; pointer-events:none;}
-  .fallback {display:none; padding:1rem; text-align:center;}
-  button {background:var(--accent); color:#fff; padding:.45rem .7rem; border-radius:8px; border:0; font-size:.95rem; cursor:pointer;}
-  button.secondary {background:#fff; color:var(--accent); border:1px solid #ddd;}
-  .muted {color:var(--muted); font-size:.9rem;}
-  .small {font-size:.85rem; color:var(--muted);}
+  html, body {
+    height: 100%; margin: 0;
+    font-family: "Inter", system-ui, Arial, sans-serif;
+    background: var(--bg); color: #111;
+  }
+  .container { max-width: var(--max-width); margin: 1.5rem auto; padding: 1rem; }
+  header {
+    background: linear-gradient(135deg,var(--accent),var(--accent2));
+    color: #fff; padding: 1rem 1.2rem;
+    border-radius: var(--radius);
+    font-weight: 700; display:flex; align-items:center; gap:12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  }
+  .grid { display: grid; grid-template-columns: 1fr 420px; gap: 1.2rem; margin-top: 1rem; }
+  @media (max-width:980px) {
+    .grid { grid-template-columns: 1fr; }
+    .ar-container { width: 100%; height: auto; }
+    video,canvas { width: 100%; height: auto; }
+  }
+  .card {
+    background: var(--card); border-radius: var(--radius);
+    padding: 1rem 1.2rem;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  .rotator {
+    height: 220px; border-radius: var(--radius); border:1px solid #e3e3e3;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden; background:#fafafa; cursor:grab; touch-action:none;
+  }
+  .rotator img { max-width:100%; max-height:100%; pointer-events:none; backface-visibility:hidden; transform-style:preserve-3d; transition:transform .12s linear; }
+  .ar-container {
+    position: relative; width:640px; height:480px;
+    border-radius: var(--radius); overflow:hidden;
+    background:#000; border:2px solid #eee;
+  }
+  video { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; z-index:1; }
+  canvas { position:absolute; top:0; left:0; width:100%; height:100%; z-index:2; pointer-events:none; }
+  .fallback { display:none; padding:1rem; text-align:center; }
+  button {
+    background: linear-gradient(135deg,var(--accent),var(--accent2));
+    color:#fff; padding:.5rem .9rem; border-radius:8px;
+    border:0; font-size:.95rem; cursor:pointer; font-weight:600;
+    transition: all .2s ease;
+  }
+  button:hover { opacity:.9; transform:translateY(-1px); }
+  button.secondary { background:#fff; color:var(--accent); border:1px solid #ddd; }
+  .muted { color:var(--muted); font-size:.9rem; }
+  .small { font-size:.85rem; color:var(--muted); }
 </style>
 </head>
 <body>
 <div class="container">
-  <header><div style="font-size:1.4rem">👗</div><div class="brand">ChechIT – AR Try-On</div></header>
+  <header><div style="font-size:1.5rem">👗</div><div class="brand">ChechIT – AR Try-On (MoveNet)</div></header>
 
   <div class="card">
     <h2>🔍 AI Fashion Search</h2>
@@ -53,7 +92,7 @@
             <button id="resetPreview" class="secondary">Reset</button>
             <button id="downloadPreview">Download</button>
             <div style="flex:1"></div>
-            <div class="small">Tip: upload transparent PNGs (smaller than ~2MB) for best results.</div>
+            <div class="small">Tip: use transparent PNGs (<2MB) for best results.</div>
           </div>
         </div>
       </div>
@@ -63,9 +102,8 @@
       <div class="card">
         <h2>🕶 AR Try-On</h2>
         <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.6rem">
-          <button id="mirrorToggle" class="secondary">Toggle Mirror</button>
           <button id="screenshotBtn">Screenshot</button>
-          <div style="margin-left:auto;color:var(--muted)">MediaPipe Pose (client)</div>
+          <div style="margin-left:auto;color:var(--muted)">MoveNet (TF.js)</div>
         </div>
         <div class="ar-container" id="arWrap">
           <div class="fallback card" id="fallback" role="status" aria-live="polite">
@@ -75,14 +113,16 @@
           <video id="video" autoplay playsinline muted></video>
           <canvas id="overlayCanvas" width="640" height="480"></canvas>
         </div>
-        <p class="small" style="margin-top:.6rem">Blue dots = pose landmarks. Red = shirt debug box. Green = wrist. Blue rect = goggles area.</p>
+        <p class="small" style="margin-top:.6rem">Blue dots = pose landmarks (debug). Overlays: shirt, watch, goggles.</p>
       </div>
     </div>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
+<!-- TensorFlow.js + Pose Detection -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.21.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+
 <script>
 const video = document.getElementById('video');
 const canvas = document.getElementById('overlayCanvas');
@@ -94,22 +134,15 @@ const staticPreview = document.getElementById('staticPreview');
 const rotator = document.getElementById('rotator');
 const resetPreview = document.getElementById('resetPreview');
 const downloadPreview = document.getElementById('downloadPreview');
-const mirrorToggle = document.getElementById('mirrorToggle');
 const screenshotBtn = document.getElementById('screenshotBtn');
 const fallback = document.getElementById('fallback');
 
-let mirrored = true;
-let latestResults = null;
+let detector, latestResults = null;
 
-const shirtImg = new Image();
-shirtImg.src = 'https://i.ibb.co/6J5f7rV/tshirt.png';
-let shirtLoaded = true;
-const watchImg = new Image();
-watchImg.src = 'https://i.ibb.co/6n4Z1sN/watch-sample.png';
-let watchLoaded = true;
-const gogglesImg = new Image();
-gogglesImg.src = 'https://i.ibb.co/9Zr7t5P/goggles-sample.png';
-let gogglesLoaded = true;
+// Default images
+const shirtImg = new Image(); shirtImg.src = 'https://i.ibb.co/6J5f7rV/tshirt.png'; let shirtLoaded = true;
+const watchImg = new Image(); watchImg.src = 'https://i.ibb.co/6n4Z1sN/watch-sample.png'; let watchLoaded = true;
+const gogglesImg = new Image(); gogglesImg.src = 'https://i.ibb.co/9Zr7t5P/goggles-sample.png'; let gogglesLoaded = true;
 
 function handleFileInput(file, imgObj, setLoadedFlag){
   if (!file) return;
@@ -118,16 +151,12 @@ function handleFileInput(file, imgObj, setLoadedFlag){
   reader.onload = e => { imgObj.src = e.target.result; staticPreview.src = e.target.result; setLoadedFlag(true); };
   reader.readAsDataURL(file);
 }
-
 uploadShirt.addEventListener('change', e => handleFileInput(e.target.files[0], shirtImg, v=>shirtLoaded=v));
 uploadWatch.addEventListener('change', e => handleFileInput(e.target.files[0], watchImg, v=>watchLoaded=v));
 uploadGoggles.addEventListener('change', e => handleFileInput(e.target.files[0], gogglesImg, v=>gogglesLoaded=v));
 
 resetPreview.addEventListener('click', ()=>{ staticPreview.src=''; staticPreview.style.transform='rotateY(0deg)'; });
-downloadPreview.addEventListener('click', ()=>{
-  if(!staticPreview.src) return alert('No preview to download');
-  const a=document.createElement('a'); a.href=staticPreview.src; a.download='overlay-preview.png'; a.click();
-});
+downloadPreview.addEventListener('click', ()=>{ if(!staticPreview.src) return alert('No preview'); const a=document.createElement('a'); a.href=staticPreview.src; a.download='overlay-preview.png'; a.click(); });
 
 let dragging=false, startX=0, curRot=0;
 rotator.addEventListener('pointerdown', e=>{ dragging=true; rotator.setPointerCapture(e.pointerId); startX=e.clientX; });
@@ -135,97 +164,92 @@ rotator.addEventListener('pointermove', e=>{ if(!dragging) return; const dx=e.cl
 rotator.addEventListener('pointerup', e=>{ dragging=false; try{ rotator.releasePointerCapture(e.pointerId);}catch{}});
 rotator.addEventListener('pointerleave', ()=>dragging=false);
 
-mirrorToggle.addEventListener('click', ()=>{ mirrored=!mirrored; video.style.transform=mirrored?'scaleX(-1)':'scaleX(1)'; });
-
 screenshotBtn.addEventListener('click', ()=>{
   const w=canvas.width, h=canvas.height;
-  const tmp=document.createElement('canvas'); tmp.width=w; tmp.height=h; const t=tmp.getContext('2d');
-  if(mirrored){ t.save(); t.scale(-1,1); t.drawImage(video,-w,0,w,h); t.restore(); } else t.drawImage(video,0,0,w,h);
+  const tmp=document.createElement('canvas'); tmp.width=w; tmp.height=h;
+  const t=tmp.getContext('2d');
+  t.drawImage(video,0,0,w,h);
   t.drawImage(canvas,0,0,w,h);
   window.open(tmp.toDataURL('image/png'),'_blank');
 });
 
-// MediaPipe Pose
-const pose = new Pose({locateFile: f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}`});
-pose.setOptions({modelComplexity:1, smoothLandmarks:true, enableSegmentation:false, minDetectionConfidence:0.5, minTrackingConfidence:0.5});
-pose.onResults(r=>{ latestResults=r; });
+async function initDetector(){
+  detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, {
+    modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING
+  });
+  estimate();
+}
 
 async function startCamera(){
   fallback.style.display='block';
   fallback.innerHTML='<p><strong>Starting camera…</strong></p><p class="muted">Allow camera permission</p>';
   try{
-    const stream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480},facingMode:'user'},audio:false});
+    const stream=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'user'},audio:false});
     video.srcObject=stream;
     await video.play();
-    (function loop(){ pose.send({image:video}).catch(()=>{}); requestAnimationFrame(loop); })();
     fallback.style.display='none';
   }catch(err){
     fallback.innerHTML=`<p><strong>Camera error</strong></p><p class="muted">${err.message}</p>`;
   }
 }
-startCamera();
 
-// Draw overlays
+async function estimate(){
+  if(video.readyState >= 2 && detector){
+    const poses = await detector.estimatePoses(video);
+    latestResults = poses[0];
+  }
+  drawOverlay();
+  requestAnimationFrame(estimate);
+}
+
+// Overlay drawing
 function drawOverlay(){
   const w=canvas.width=video.videoWidth||640;
   const h=canvas.height=video.videoHeight||480;
   ctx.clearRect(0,0,w,h);
+  ctx.drawImage(video,0,0,w,h);
 
-  if(!latestResults || !latestResults.poseLandmarks){
-    ctx.save();
-    if(mirrored){ ctx.scale(-1,1); ctx.drawImage(video,-w,0,w,h); } else ctx.drawImage(video,0,0,w,h);
-    ctx.restore(); return;
-  }
-
-  const lm=latestResults.poseLandmarks.map(p=>({x:mirrored?1-p.x:p.x, y:p.y, z:p.z, visibility:p.visibility||0}));
-  ctx.save();
-  if(mirrored){ ctx.scale(-1,1); ctx.drawImage(latestResults.image,-w,0,w,h); } else ctx.drawImage(latestResults.image,0,0,w,h);
-  ctx.restore();
-
-  const ok=idx=>lm[idx] && typeof lm[idx].x==='number' && lm[idx].visibility>0.01;
+  if(!latestResults || !latestResults.keypoints) return;
+  const kp = latestResults.keypoints;
+  const get = name => { const k = kp.find(p=>p.name===name); return (k && k.score>0.3)?k:null; };
 
   // Shirt
-  if(ok(11)&&ok(12)&&ok(23)&&ok(24)){
-    const leftShoulder=lm[11], rightShoulder=lm[12], leftHip=lm[23], rightHip=lm[24];
-    const centerX=((leftShoulder.x+rightShoulder.x)/2)*w;
-    const centerY=((leftShoulder.y+rightShoulder.y)/2)*h;
-    const hipY=((leftHip.y+rightHip.y)/2)*h;
+  const lShoulder=get('left_shoulder'), rShoulder=get('right_shoulder'), lHip=get('left_hip'), rHip=get('right_hip');
+  if(lShoulder && rShoulder && lHip && rHip && shirtLoaded){
+    const centerX=(lShoulder.x+rShoulder.x)/2;
+    const centerY=(lShoulder.y+rShoulder.y)/2;
+    const hipY=(lHip.y+rHip.y)/2;
     const torsoH=Math.max(hipY-centerY,10);
-    const dx=(rightShoulder.x-leftShoulder.x)*w, dy=(rightShoulder.y-leftShoulder.y)*h;
+    const dx=rShoulder.x-lShoulder.x, dy=rShoulder.y-lShoulder.y;
     const shoulderDist=Math.sqrt(dx*dx+dy*dy), angle=Math.atan2(dy,dx);
-
-    if(shirtLoaded && shirtImg.complete && shirtImg.naturalWidth){
-      const shirtW=shoulderDist*1.45, shirtH=torsoH*2.0, shirtY=centerY+torsoH*0.1;
-      ctx.save();
-      ctx.translate(centerX,shirtY+shirtH/2); ctx.rotate(angle);
-      ctx.drawImage(shirtImg,-shirtW/2,-shirtH/2,shirtW,shirtH);
-      ctx.restore();
-    }
+    const shirtW=shoulderDist*1.6, shirtH=torsoH*2.0, shirtY=centerY+torsoH*0.2;
+    ctx.save(); ctx.translate(centerX,shirtY+shirtH/2); ctx.rotate(angle);
+    ctx.drawImage(shirtImg,-shirtW/2,-shirtH/2,shirtW,shirtH); ctx.restore();
   }
 
   // Watch
-  const wrist=(ok(16)&&ok(15))?(lm[16].visibility>=lm[15].visibility?lm[16]:lm[15]):(ok(16)?lm[16]:(ok(15)?lm[15]:null));
-  if(wrist && watchLoaded && watchImg.complete && watchImg.naturalWidth){
-    const wx=wrist.x*w, wy=wrist.y*h;
-    const watchW=Math.max(30,w*0.18), watchH=watchW*(watchImg.naturalHeight/watchImg.naturalWidth||1);
-    ctx.save(); ctx.translate(wx,wy); ctx.drawImage(watchImg,-watchW/2,-watchH/2,watchW,watchH); ctx.restore();
+  const lWrist=get('left_wrist'), rWrist=get('right_wrist');
+  const wrist = (rWrist && (!lWrist || rWrist.score>=lWrist.score)) ? rWrist : lWrist;
+  if(wrist && watchLoaded){
+    const watchW=60, watchH=watchW*(watchImg.naturalHeight/watchImg.naturalWidth||1);
+    ctx.drawImage(watchImg,wrist.x-watchW/2,wrist.y-watchH/2,watchW,watchH);
   }
 
   // Goggles
-  if(ok(0) && gogglesLoaded && gogglesImg.complete && gogglesImg.naturalWidth){
-    const eyeDist=(ok(2)&&ok(5))?Math.hypot((lm[5].x-lm[2].x)*w,(lm[5].y-lm[2].y)*h):w*0.18;
-    const gx=lm[0].x*w, gy=lm[0].y*h-eyeDist*0.05;
-    const gW=Math.max(eyeDist*1.6,40), gH=gW*(gogglesImg.naturalHeight/gogglesImg.naturalWidth||1);
-    ctx.save(); ctx.translate(gx,gy); ctx.drawImage(gogglesImg,-gW/2,-gH/2,gW,gH); ctx.restore();
+  const nose=get('nose'), lEye=get('left_eye'), rEye=get('right_eye');
+  if(nose && gogglesLoaded){
+    const eyeDist=(lEye&&rEye)?Math.hypot(lEye.x-rEye.x,lEye.y-rEye.y):60;
+    const gx=nose.x, gy=nose.y-eyeDist*0.05;
+    const gW=eyeDist*2.0, gH=gW*(gogglesImg.naturalHeight/gogglesImg.naturalWidth||1);
+    ctx.drawImage(gogglesImg,gx-gW/2,gy-gH/2,gW,gH);
   }
 
-  // Pose landmarks (debug)
-  ctx.fillStyle='rgba(10,120,240,0.95)'; ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.font='10px monospace';
-  lm.forEach((pt,idx)=>{ const px=pt.x*w, py=pt.y*h; if(!isFinite(px)||!isFinite(py)) return; ctx.beginPath(); ctx.arc(px,py,4,0,Math.PI*2); ctx.fill(); ctx.fillStyle='white'; ctx.fillText(idx,px+6,py+4); ctx.fillStyle='rgba(10,120,240,0.95)'; });
-  requestAnimationFrame(drawOverlay);
+  // Debug dots
+  ctx.fillStyle='rgba(10,120,240,0.95)';
+  kp.forEach(p=>{ if(p.score>0.3){ ctx.beginPath(); ctx.arc(p.x,p.y,4,0,Math.PI*2); ctx.fill(); } });
 }
 
-drawOverlay();
+startCamera().then(initDetector);
 </script>
 </body>
 </html>
