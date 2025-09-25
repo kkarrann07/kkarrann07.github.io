@@ -2,201 +2,152 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ChechIT – AR Try-On (DEBUG)</title>
+  <title>ChechIT – AR Try-On</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; background: #333; color: white; padding: 20px; }
-    .container { max-width: 800px; margin: 0 auto; }
-    .upload-section { background: #444; padding: 20px; margin: 20px 0; border-radius: 10px; }
-    .upload-row { display: flex; gap: 20px; margin: 10px 0; align-items: center; }
-    input[type="file"] { padding: 10px; background: #555; color: white; border: 1px solid #666; border-radius: 5px; }
-    .status { padding: 5px 10px; border-radius: 5px; font-weight: bold; }
-    .loaded { background: green; }
-    .waiting { background: orange; }
-    .ar-container { position: relative; width: 640px; height: 480px; margin: 20px auto; border: 2px solid #666; background: #000; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f0f0; color: #333; }
+    header { background: #2a2a72; color: #fff; padding: 1rem; text-align: center; font-size: 1.8rem; }
+    section { max-width: 800px; margin: 2rem auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 2rem; }
+    h2 { font-size: 1.6rem; margin-bottom: 0.5rem; color: #2a2a72; text-align: center; }
+    p { text-align: center; margin-bottom: 1.5rem; color: #555; }
+    iframe { width: 100%; height: 500px; border: none; border-radius: 8px; }
+    .upload-controls { display: flex; justify-content: space-around; margin-bottom: 2rem; }
+    .upload-controls input { display: none; }
+    .upload-controls label { background: #2a2a72; color: #fff; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; transition: background 0.3s; }
+    .upload-controls label:hover { background: #3a3aad; }
+    .ar-container { position: relative; width: 100%; max-width: 640px; margin: 0 auto; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 30px rgba(0,0,0,0.2); }
     video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-    video { transform: scaleX(-1); z-index: 1; }
-    canvas { z-index: 2; }
-    .debug-panel { background: #222; padding: 15px; margin: 20px 0; border-radius: 10px; font-family: monospace; font-size: 14px; }
-    .test-buttons { margin: 20px 0; }
-    button { padding: 10px 20px; margin: 5px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
-    button:hover { background: #0088ff; }
-    .force-test { background: #cc0066; }
-    .force-test:hover { background: #ff0088; }
+    video { transform: scaleX(-1); }
+    canvas { pointer-events: none; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🔧 AR Try-On Debug</h1>
+  <header>👗 ChechIT – AR Try-On</header>
 
-    <div class="upload-section">
-      <h2>Upload Images</h2>
-      <div class="upload-row">
-        <label>Shirt:</label>
-        <input type="file" id="uploadShirt" accept="image/*" />
-        <div class="status waiting" id="shirtStatus">Waiting...</div>
-      </div>
-      <div class="upload-row">
-        <label>Watch:</label>
-        <input type="file" id="uploadWatch" accept="image/*" />
-        <div class="status waiting" id="watchStatus">Waiting...</div>
-      </div>
-      <div class="upload-row">
-        <label>Goggles:</label>
-        <input type="file" id="uploadGoggles" accept="image/*" />
-        <div class="status waiting" id="gogglesStatus">Waiting...</div>
-      </div>
+  <section>
+    <h2>🔍 AI Fashion Search</h2>
+    <p>Search garments using AI embeddings.</p>
+    <iframe src="https://kkarrann07-Fashion.hf.space"></iframe>
+  </section>
+
+  <section>
+    <h2>🖼 Upload Overlays</h2>
+    <div class="upload-controls">
+      <label for="uploadShirt">👕 Shirt<input id="uploadShirt" type="file" accept="image/*"></label>
+      <label for="uploadWatch">⌚ Watch<input id="uploadWatch" type="file" accept="image/*"></label>
+      <label for="uploadGoggles">🕶 Goggles<input id="uploadGoggles" type="file" accept="image/*"></label>
     </div>
+  </section>
 
-    <div class="test-buttons">
-      <button onclick="testBasicDrawing()">🎯 Test Canvas Drawing</button>
-      <button onclick="forceDrawOverlays()" class="force-test">🚀 Force Draw All Overlays</button>
-      <button onclick="clearCanvas()">🗑️ Clear Canvas</button>
-    </div>
-
+  <section>
+    <h2>🕶 AR Try-On</h2>
     <div class="ar-container">
       <video id="video" autoplay playsinline muted></video>
-      <canvas id="canvas" width="640" height="480"></canvas>
+      <canvas id="overlayCanvas" width="640" height="480"></canvas>
     </div>
-
-    <div class="debug-panel" id="debugPanel">
-      <strong>Debug Info:</strong><br>
-      Camera: Initializing...<br>
-      Pose: Waiting...<br>
-      Images: 0/3 loaded<br>
-      Last Draw: Never
-    </div>
-  </div>
+  </section>
 
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
+
   <script>
     const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
+    const canvas = document.getElementById('overlayCanvas');
     const ctx = canvas.getContext('2d');
-    let shirtImg=null, watchImg=null, gogglesImg=null;
-    let cameraReady=false, poseReady=false, currentPose=null;
-    let isTestingCanvas=false;
-    let frameCount=0;
 
-    function updateDebug(message) {
-      const panel=document.getElementById('debugPanel');
-      const lines=panel.innerHTML.split('<br>');
-      const [key,value]=message.split(': ');
-      let found=false;
-      for(let i=0;i<lines.length;i++){
-        if(lines[i].startsWith(key+':')){ lines[i]=`${key}: ${value}`; found=true; break; }
-      }
-      if(!found) lines.push(`${key}: ${value}`);
-      panel.innerHTML=lines.join('<br>');
-    }
+    let shirtImg = new Image(), watchImg = new Image(), gogglesImg = new Image();
+    let shirtLoaded=false, watchLoaded=false, gogglesLoaded=false;
+    let latestPose = null;
 
-    function testBasicDrawing(){
-      isTestingCanvas=true;
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle='rgba(255,0,0,0.5)'; ctx.fillRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle='lime'; ctx.fillRect(50,50,100,100);
-      ctx.fillStyle='blue'; ctx.beginPath(); ctx.arc(320,240,50,0,2*Math.PI); ctx.fill();
-      ctx.fillStyle='white'; ctx.font='24px Arial'; ctx.fillText('CANVAS TEST',200,200);
-      updateDebug('Last Draw: Canvas Test SUCCESS');
-      setTimeout(()=>{ isTestingCanvas=false; console.log('🎯 Test complete'); },3000);
-    }
-
-    function clearCanvas(){
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      updateDebug('Last Draw: Canvas Cleared');
-    }
-
-    function forceDrawOverlays(){
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      if(cameraReady){ ctx.save(); ctx.scale(-1,1); ctx.drawImage(video,-canvas.width,0,canvas.width,canvas.height); ctx.restore(); }
-      if(shirtImg){ ctx.globalAlpha=0.8; ctx.drawImage(shirtImg,170,100,300,350); console.log('🔴 Shirt drawn'); }
-      if(watchImg){ ctx.globalAlpha=0.8; ctx.drawImage(watchImg,450,250,100,100); console.log('🟢 Watch drawn'); }
-      if(gogglesImg){ ctx.globalAlpha=0.8; ctx.drawImage(gogglesImg,220,80,200,80); console.log('🔵 Goggles drawn'); }
-      updateDebug('Last Draw: Force Draw');
-    }
-
-    function setupImageLoader(inputId,statusId,varName){
-      const input=document.getElementById(inputId), status=document.getElementById(statusId);
-      input.addEventListener('change',e=>{
-        const file=e.target.files[0]; if(!file) return;
-        status.textContent='Loading...'; status.className='status waiting';
-        const reader=new FileReader();
-        reader.onload=ev=>{
-          const img=new Image();
-          img.onload=()=>{
-            window[varName]=img;
-            status.textContent=`✅ Loaded (${img.width}×${img.height})`;
-            status.className='status loaded';
-            updateDebug(`Images: ${[shirtImg,watchImg,gogglesImg].filter(Boolean).length}/3 loaded`);
-          };
-          img.onerror=()=>{ status.textContent='❌ Failed'; status.className='status waiting'; };
-          img.src=ev.target.result;
-        };
+    function handleUpload(id, imgObj, flag) {
+      document.getElementById(id).addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => imgObj.src = ev.target.result;
         reader.readAsDataURL(file);
       });
+      imgObj.onload = () => window[flag] = true;
     }
 
-    setupImageLoader('uploadShirt','shirtStatus','shirtImg');
-    setupImageLoader('uploadWatch','watchStatus','watchImg');
-    setupImageLoader('uploadGoggles','gogglesStatus','gogglesImg');
+    handleUpload('uploadShirt', shirtImg, 'shirtLoaded');
+    handleUpload('uploadWatch', watchImg, 'watchLoaded');
+    handleUpload('uploadGoggles', gogglesImg, 'gogglesLoaded');
 
-    let pose=null;
-    function initializePose(){
-      pose=new Pose({ locateFile: f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}` });
-      pose.setOptions({ modelComplexity:1, smoothLandmarks:true, enableSegmentation:false, minDetectionConfidence:0.3, minTrackingConfidence:0.3 });
-      pose.onResults(results=>{
-        currentPose=results; 
-        if(results.poseLandmarks?.length) {
-          if(!poseReady){ poseReady=true; updateDebug('Pose: ✅ ACTIVE'); }
-          drawFrame();
-        }
-      });
-      updateDebug('Pose: Initializing...');
-    }
+    const pose = new Pose({
+      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}`
+    });
+    pose.setOptions({
+      modelComplexity: 1, smoothLandmarks: true,
+      enableSegmentation: false,
+      minDetectionConfidence: 0.3, minTrackingConfidence: 0.3
+    });
+    pose.onResults(r => latestPose = r);
 
-    function initializeCamera(){
-      const camera=new Camera(video,{ onFrame:async()=>{ if(pose) await pose.send({image:video}); }, width:640, height:480 });
-      camera.start().then(()=>{
-        cameraReady=true; updateDebug('Camera: ✅ READY');
-      }).catch(err=>{
-        updateDebug('Camera: ❌ ERROR'); console.error(err);
-      });
-    }
+    new Camera(video, {
+      onFrame: async () => await pose.send({image: video}),
+      width: 640, height: 480
+    }).start();
 
-    function drawFrame(){
-      frameCount++;
-      if(isTestingCanvas) return;
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      if(cameraReady && video.videoWidth>0){
-        ctx.save(); ctx.scale(-1,1); ctx.drawImage(video,-canvas.width,0,canvas.width,canvas.height); ctx.restore();
+    function draw() {
+      requestAnimationFrame(draw);
+      if (!latestPose) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+      ctx.restore();
+
+      const lm = latestPose.poseLandmarks;
+      if (!lm) return;
+      const w = canvas.width, h = canvas.height;
+
+      // extract flipped coords
+      function coord(i) {
+        const p = lm[i];
+        return {x: (1-p.x)*w, y: p.y*h, v: p.visibility};
       }
-      const lm=currentPose.poseLandmarks, w=canvas.width, h=canvas.height;
-      if(!lm) return;
-      ctx.fillStyle='red'; lm.forEach(l=>{ if(l.visibility>0.5){const x=(1-l.x)*w,y=l.y*h; ctx.fillRect(x-2,y-2,4,4);}});
+
+      const ls = coord(11), rs = coord(12), lh = coord(23), rh = coord(24);
+      const lw = coord(15), rw = coord(16);
+      const le = coord(2), re = coord(5);
+
       // Shirt
-      if(shirtImg && lm[11]?.visibility>0.5 && lm[12]?.visibility>0.5 && lm[23]?.visibility>0.5 && lm[24]?.visibility>0.5){
-        const cx=(1-((lm[11].x+lm[12].x)/2))*w, cy=((lm[11].y+lm[12].y)/2)*h, hipY=((lm[23].y+lm[24].y)/2)*h;
-        const H=Math.abs(hipY-cy)*2.5, W=Math.abs(lm[12].x-lm[11].x)*w*3;
-        ctx.save(); ctx.globalAlpha=0.9; ctx.drawImage(shirtImg,cx-W/2,cy-H/4,W,H); ctx.restore();
+      if (shirtLoaded && ls.v>0.5 && rs.v>0.5 && lh.v>0.5 && rh.v>0.5) {
+        const cx=(ls.x+rs.x)/2, cy=(ls.y+rs.y)/2;
+        const hipY=(lh.y+rh.y)/2;
+        const H=Math.abs(hipY-cy)*2.2, W=Math.abs(rs.x-ls.x)*2.5;
+        const angle=Math.atan2(rs.y-ls.y, rs.x-ls.x);
+        ctx.save();
+        ctx.globalAlpha=0.9;
+        ctx.translate(cx, cy+H*0.2);
+        ctx.rotate(angle);
+        ctx.drawImage(shirtImg, -W/2, -H/2, W, H);
+        ctx.restore();
       }
+
       // Watch
-      if(watchImg && lm[16]?.visibility>0.5){
-        const x=(1-lm[16].x)*w, y=lm[16].y*h, size=w*0.15;
-        ctx.save(); ctx.globalAlpha=0.9; ctx.drawImage(watchImg,x-size/2,y-size/2,size,size); ctx.restore();
+      if (watchLoaded && rw.v>0.5) {
+        const x=rw.x, y=rw.y, S=w*0.12;
+        ctx.save();
+        ctx.globalAlpha=0.9;
+        ctx.drawImage(watchImg, x-S/2, y-S/2, S, S);
+        ctx.restore();
       }
+
       // Goggles
-      if(gogglesImg && lm[2]?.visibility>0.5 && lm[5]?.visibility>0.5){
-        const cx=(1-((lm[2].x+lm[5].x)/2))*w, cy=((lm[2].y+lm[5].y)/2)*h;
-        const dist=Math.abs(lm[2].x-lm[5].x)*w, GW=dist*4, GH=GW*(gogglesImg.height/gogglesImg.width);
-        ctx.save(); ctx.globalAlpha=0.9; ctx.drawImage(gogglesImg,cx-GW/2,cy-GH/2,GW,GH); ctx.restore();
+      if (gogglesLoaded && le.v>0.5 && re.v>0.5) {
+        const cx=(le.x+re.x)/2, cy=(le.y+re.y)/2;
+        const D=Math.abs(le.x-re.x), GW=D*3.5, GH=GW*(gogglesImg.height/gogglesImg.width);
+        ctx.save();
+        ctx.globalAlpha=0.9;
+        ctx.drawImage(gogglesImg, cx-GW/2, cy-GH/2, GW, GH);
+        ctx.restore();
       }
-      if(frameCount%30===0) updateDebug(`Last Draw: Pose & Overlays`);
     }
 
-    console.log('🚀 Starting AR Try-On...');
-    initializePose();
-    initializeCamera();
+    draw();
   </script>
 </body>
 </html>
