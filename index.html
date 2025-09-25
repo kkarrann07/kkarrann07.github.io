@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ChechIT – AR Try-On (Pose + Overlays)</title>
+  <title>ChechIT – AR Try-On (3D Overlays)</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, sans-serif; background: #f7f7f7; text-align: center; }
@@ -21,9 +21,8 @@
     .rotator:active { cursor: grabbing; }
     .rotator-placeholder { color: #999; font-size: 1.2rem; text-align: center; }
     .ar-container { position: relative; width: 640px; height: 480px; margin: auto; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
-    video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 12px; object-fit: cover; }
-    video { transform: scaleX(-1); z-index: 1; }
-    canvas { z-index: 2; pointer-events: none; }
+    video { position: absolute; top:0; left:0; width:100%; height:100%; transform: scaleX(-1); object-fit:cover; z-index:1; }
+    #threejs-canvas { position:absolute; top:0; left:0; width:100%; height:100%; z-index:2; pointer-events:none; }
   </style>
 </head>
 <body>
@@ -54,7 +53,7 @@
     </div>
     <div class="static-shirt">
       <div class="rotator" id="rotator">
-        <img id="staticPreview" src="" style="display:none" alt="Overlay preview" />
+        <img id="staticPreview" src="" style="display:none" />
         <div class="rotator-placeholder" id="rotatorPlaceholder">🖼<br>3D Preview<br><small>Upload an overlay</small></div>
       </div>
     </div>
@@ -62,91 +61,87 @@
 
   <section>
     <h2>🕶 AR Try-On</h2>
-    <p>Real-time camera with pose-based overlay positioning.</p>
+    <p>Real-time camera with pose-based 3D overlays.</p>
     <div class="ar-container">
       <video id="video" autoplay playsinline muted></video>
-      <canvas id="overlayCanvas" width="640" height="480"></canvas>
+      <canvas id="threejs-canvas"></canvas>
     </div>
   </section>
 
+  <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
   <script>
-    // Elements
-    const video = document.getElementById('video'),
-          canvas = document.getElementById('overlayCanvas'),
-          ctx = canvas.getContext('2d'),
-          preview = document.getElementById('staticPreview'),
-          placeholder = document.getElementById('rotatorPlaceholder');
+    // Setup video
+    const video = document.getElementById('video');
+    navigator.mediaDevices.getUserMedia({video:{width:640,height:480}}).then(s=>video.srcObject=s);
 
-    // Images & flags
-    let shirtImg=new Image(), watchImg=new Image(), gogglesImg=new Image();
-    let shirtLoaded=false, watchLoaded=false, gogglesLoaded=false, latestPose=null;
+    // Three.js init
+    const canvas3 = document.getElementById('threejs-canvas'),
+          renderer = new THREE.WebGLRenderer({canvas:canvas3,alpha:true}),
+          scene = new THREE.Scene(),
+          camera = new THREE.PerspectiveCamera(45,640/480,0.1,10);
+    renderer.setSize(640,480);
+    camera.position.set(0,1.5,2);
+    scene.add(new THREE.AmbientLight(0xffffff,0.8));
+    const dir = new THREE.DirectionalLight(0xffffff,0.6); dir.position.set(0,5,5); scene.add(dir);
 
-    // Handle file uploads + 3D preview
+    // Placeholder meshes
+    const shirt = new THREE.Mesh(new THREE.PlaneGeometry(1,1.3), new THREE.MeshBasicMaterial({color:0x2196f3,transparent:true,opacity:0.8}));
+    const goggles = new THREE.Mesh(new THREE.PlaneGeometry(0.6,0.2), new THREE.MeshBasicMaterial({color:0xffeb3b,transparent:true,opacity:0.8}));
+    const watch = new THREE.Mesh(new THREE.PlaneGeometry(0.2,0.2), new THREE.MeshBasicMaterial({color:0x4caf50,transparent:true,opacity:0.8}));
+    scene.add(shirt,goggles,watch);
+
+    // Load images onto textures
+    function applyTexture(img, mesh){
+      const tex = new THREE.Texture(img); tex.needsUpdate=true;
+      mesh.material.map=tex; mesh.material.color.set(0xffffff);
+    }
     ['Shirt','Watch','Goggles'].forEach(type=>{
       const inp=document.getElementById('upload'+type),
-            img=(type==='Shirt'?shirtImg:type==='Watch'?watchImg:gogglesImg);
-      inp.addEventListener('change',e=>{
-        const f=e.target.files[0];
-        if(!f)return;
-        const r=new FileReader();
-        r.onload=ev=>{
-          img.src=ev.target.result;
-          preview.src=ev.target.result;
-          preview.style.display='block';
-          placeholder.style.display='none';
-          preview.style.transform='rotateY(0deg)';
-        };
+            img=new Image(), mesh=(type==='Shirt'?shirt:type==='Watch'?watch:goggles);
+      inp.onchange=e=>{
+        const f=e.target.files[0],r=new FileReader();
+        r.onload=ev=>{img.src=ev.target.result; applyTexture(img,mesh);};
         r.readAsDataURL(f);
-      });
-      img.onload=()=> window[type.toLowerCase()+'Loaded']=true;
+      };
     });
 
-    // 3D Rotator
-    { let down=false, startX, rot=0;
-      document.getElementById('rotator').addEventListener('mousedown',e=>{down=true;startX=e.clientX});
-      document.addEventListener('mousemove',e=>{ if(!down)return; rot+=(e.clientX-startX)*0.5; preview.style.transform=`rotateY(${rot}deg)`; startX=e.clientX; });
-      document.addEventListener('mouseup',()=>down=false);
-    }
-
     // MediaPipe Pose
-    const pose=new Pose({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}`});
-    pose.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
-    pose.onResults(r=>latestPose=r);
+    let latestPose=null;
+    const pose = new Pose({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}`});
+    pose.setOptions({modelComplexity:1,smoothLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+    pose.onResults(res=>latestPose=res.poseLandmarks);
     new Camera(video,{onFrame:async()=>await pose.send({image:video}),width:640,height:480}).start();
 
-    // Render loop
-    function draw(){
-      requestAnimationFrame(draw);
-      if(!latestPose)return;
-      ctx.clearRect(0,0,640,480);
-      ctx.save(); ctx.scale(-1,1); ctx.drawImage(video,-640,0,640,480); ctx.restore();
-      const lm=latestPose.poseLandmarks, w=640,h=480;
-      if(!lm)return;
-      // helper
-      const P=i=>({x:(1-lm[i].x)*w,y:lm[i].y*h,v:lm[i].visibility});
-      const ls=P(11), rs=P(12), lh=P(23), rh=P(24), rw=P(16), le=P(2), re=P(5);
-      // Shirt
-      if(shirtLoaded&&ls.v>0.5&&rs.v>0.5&&lh.v>0.5&&rh.v>0.5){
-        const cx=(ls.x+rs.x)/2, cy=(ls.y+rs.y)/2, hipY=(lh.y+rh.y)/2;
-        const H=(hipY-cy)*2.0, W=Math.hypot(rs.x-ls.x,rs.y-ls.y)*1.5;
-        const ang=Math.atan2(rs.y-ls.y,rs.x-ls.x);
-        ctx.save(); ctx.translate(cx,cy+H/4); ctx.rotate(ang); ctx.globalAlpha=0.9;
-        ctx.drawImage(shirtImg,-W/2,-H/2,W,H); ctx.restore();
-      }
-      // Watch
-      if(watchLoaded&&rw.v>0.5){
-        const S=w*0.12; ctx.globalAlpha=0.9; ctx.drawImage(watchImg,rw.x-S/2,rw.y-S/2,S,S);
-      }
-      // Goggles
-      if(gogglesLoaded&&le.v>0.5&&re.v>0.5){
-        const cx=(le.x+re.x)/2, cy=(le.y+re.y)/2, D=Math.hypot(re.x-le.x,re.y-le.y);
-        const GW=D*2.5, GH=GW*(gogglesImg.height/gogglesImg.width);
-        ctx.globalAlpha=0.9; ctx.drawImage(gogglesImg,cx-GW/2,cy-GH/2,GW,GH);
-      }
+    // Convert normalized to World coords
+    function toWorld(p){
+      return new THREE.Vector3((1-p.x)-0.5,(p.y-0.5)*-1,p.z*2-1);
     }
-    draw();
+
+    // Animation
+    function animate(){
+      requestAnimationFrame(animate);
+      if(latestPose){
+        const ls=toWorld(latestPose[11]), rs=toWorld(latestPose[12]),
+              le=toWorld(latestPose[2]),  re=toWorld(latestPose[5]),
+              rw=toWorld(latestPose[16]), lh=toWorld(latestPose[23]), rh=toWorld(latestPose[24]);
+        // Shirt
+        shirt.position.copy(ls.clone().add(rs).multiplyScalar(0.5)).setZ((ls.z+rs.z)/2);
+        const w=ls.distanceTo(rs)*1.2, h=w*1.3;
+        shirt.scale.set(w,h,1);
+        shirt.rotation.set(0,0,Math.atan2(rs.y-ls.y,rs.x-ls.x));
+        // Goggles
+        goggles.position.copy(le.clone().add(re).multiplyScalar(0.5)).setZ((le.z+re.z)/2);
+        const gw=le.distanceTo(re)*1.8;
+        goggles.scale.set(gw,gw*0.4,1);
+        // Watch
+        watch.position.copy(rw).setZ(rw.z);
+        watch.scale.set(0.2,0.2,1);
+      }
+      renderer.render(scene,camera);
+    }
+    animate();
   </script>
 </body>
 </html>
