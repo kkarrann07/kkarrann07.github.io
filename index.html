@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ChechIT – AR Try-On</title>
+  <title>Ch</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Segoe UI',sans-serif; background:#eef2f5; color:#333; }
@@ -25,7 +25,7 @@
     .rotator-placeholder { color:#999; text-align:center; }
     .ar-container { position:relative; width:640px; height:480px; margin:auto; border-radius:12px; overflow:hidden; box-shadow:0 8px 30px rgba(0,0,0,0.2); background:#000; }
     video { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
-    .overlay { position:absolute; pointer-events:none; transform-origin:center center; will-change:transform; }
+    .overlay { position:absolute; pointer-events:none; transform-origin:center top; will-change:transform; }
     .status-bar { position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.6); color:#fff; padding:5px 10px; border-radius:20px; font-size:0.9rem; }
   </style>
 </head>
@@ -71,17 +71,23 @@
           placeholder = document.getElementById('rotatorPlaceholder'),
           rotator = document.getElementById('rotator');
 
-    // Upload & 3D preview
+    // Upload & preview
     ['Shirt','Watch','Goggles'].forEach(type=>{
-      const inp=document.getElementById('upload'+type),
-            img=(type==='Shirt'?shirtO:type==='Watch'?watchO:gogglesO),
-            filePreview=preview;
-      inp.addEventListener('change',e=>{
-        const f=e.target.files[0]; if(!f)return;
+      const inp = document.getElementById('upload'+type),
+            img = (type==='Shirt'?shirtO:type==='Watch'?watchO:gogglesO);
+      inp.addEventListener('change', e=>{
+        const f=e.target.files[0];
+        if(!f) return;
         const r=new FileReader();
-        r.onload=ev=>{
-          img.src=ev.target.result; img.style.display='block';
-          filePreview.src=ev.target.result; filePreview.style.display='block'; placeholder.style.display='none'; filePreview.style.transform='rotateY(0deg)';
+        r.onload = ev=>{
+          img.src = ev.target.result;
+          img.style.display = 'block';
+          if(type==='Shirt'){
+            preview.src = ev.target.result;
+            preview.style.display = 'block';
+            placeholder.style.display = 'none';
+            rot=0; preview.style.transform='rotateY(0deg)';
+          }
         };
         r.readAsDataURL(f);
       });
@@ -90,54 +96,36 @@
     // 3D Rotator
     let isDown=false, startX, rot=0;
     rotator.addEventListener('mousedown',e=>{isDown=true; startX=e.clientX;});
-    window.addEventListener('mousemove',e=>{ if(!isDown)return; rot+=(e.clientX-startX)*0.5; preview.style.transform=`rotateY(${rot}deg)`; startX=e.clientX; });
+    window.addEventListener('mousemove',e=>{if(!isDown) return; rot+=(e.clientX-startX)*0.5; preview.style.transform=`rotateY(${rot}deg)`; startX=e.clientX;});
     window.addEventListener('mouseup',()=>isDown=false);
 
-    // Camera start
+    // Camera
     navigator.mediaDevices.getUserMedia({video:{width:640,height:480}})
-      .then(s=>video.srcObject=s);
+      .then(s=>{video.srcObject=s; statusBar.textContent='Loading Pose…';});
 
-    let latestPose=null;
-    const pose=new Pose({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}`});
+    let latestPose = null;
+    const pose = new Pose({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}`});
     pose.setOptions({modelComplexity:1,smoothLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
-    pose.onResults(r=>{ latestPose=r.poseLandmarks; statusBar.textContent='AR Active'; });
+    pose.onResults(r=>{latestPose=r.poseLandmarks; statusBar.textContent='AR Active';});
     new Camera(video,{onFrame:async()=>await pose.send({image:video}),width:640,height:480}).start();
 
     function update(){
       if(latestPose){
         const w=video.clientWidth, h=video.clientHeight;
         const P=i=>{const p=latestPose[i];return{x:(1-p.x)*w,y:p.y*h,v:p.visibility};};
-        const ls=P(11), rs=P(12), lh=P(23), rh=P(24),
-              rw=P(16), le=P(2), re=P(5);
+        const ls=P(11), rs=P(12), lh=P(23), rh=P(24);
 
-        // Shirt
-        if(shirtO.src&&ls.v>0.5&&rs.v>0.5&&lh.v>0.5&&rh.v>0.5){
+        // Shirt overlay only
+        if(shirtO.src && ls.v>0.5 && rs.v>0.5 && lh.v>0.5 && rh.v>0.5){
           const cx=(ls.x+rs.x)/2, cy=(ls.y+rs.y)/2, hipY=(lh.y+rh.y)/2;
-          const H=Math.abs(hipY-cy)*1.8, W=Math.hypot(rs.x-ls.x,rs.y-ls.y)*1.4;
-          const ang=Math.atan2(rs.y-ls.y,rs.x-ls.x)*180/Math.PI;
+          const H = Math.abs(hipY-cy)*1.8, W = Math.hypot(rs.x-ls.x,rs.y-ls.y)*1.4;
+          const ang = Math.atan2(rs.y-ls.y, rs.x-ls.x)*180/Math.PI;
           Object.assign(shirtO.style,{
-            left:`${cx-W/2}px`, top:`${cy-H/2}px`,
-            width:`${W}px`, height:`${H}px`,
+            left:`${cx-W/2}px`,
+            top:`${cy-H/2}px`,
+            width:`${W}px`,
+            height:`${H}px`,
             transform:`rotate(${ang}deg)`
-          });
-        }
-        // Watch
-        if(watchO.src&&rw.v>0.5){
-          const S=w*0.12;
-          Object.assign(watchO.style,{
-            left:`${rw.x-S/2}px`, top:`${rw.y-S/2}px`,
-            width:`${S}px`, height:`${S}px`,
-            transform:'rotate(0deg)'
-          });
-        }
-        // Goggles
-        if(gogglesO.src&&le.v>0.5&&re.v>0.5){
-          const cx=(le.x+re.x)/2, cy=(le.y+re.y)/2;
-          const D=Math.hypot(re.x-le.x,re.y-le.y), GW=D*2.2, GH=GW*(gogglesO.naturalHeight/gogglesO.naturalWidth);
-          Object.assign(gogglesO.style,{
-            left:`${cx-GW/2}px`, top:`${cy-GH/2}px`,
-            width:`${GW}px`, height:`${GH}px`,
-            transform:'rotate(0deg)'
           });
         }
       }
