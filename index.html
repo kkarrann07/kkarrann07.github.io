@@ -28,17 +28,6 @@
       position: relative;
     }
     
-    header::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><defs><radialGradient id="a"><stop offset="20%" stop-color="rgba(255,255,255,0.1)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient></defs><circle fill="url(%23a)" cx="10" cy="10" r="10"/></svg>') repeat;
-      opacity: 0.1;
-    }
-    
     section {
       background: rgba(255,255,255,0.95);
       margin: 2rem auto;
@@ -82,10 +71,6 @@
       border-radius: 15px;
       box-shadow: 0 8px 25px rgba(0,0,0,0.15);
       transition: transform 0.3s ease;
-    }
-    
-    iframe:hover {
-      transform: translateY(-5px);
     }
     
     .upload-section {
@@ -218,7 +203,7 @@
       top: 10px;
       right: 10px;
       padding: 8px 12px;
-      background: rgba(0,0,0,0.7);
+      background: rgba(0,0,0,0.8);
       color: white;
       border-radius: 20px;
       font-size: 0.9rem;
@@ -230,7 +215,7 @@
       top: 50px;
       right: 10px;
       padding: 8px 12px;
-      background: rgba(0,0,0,0.7);
+      background: rgba(0,0,0,0.8);
       color: white;
       border-radius: 10px;
       font-size: 0.8rem;
@@ -277,19 +262,19 @@
     <div class="upload-section">
       <div class="upload-controls">
         <div class="file-input-wrapper">
-          <input type="file" id="uploadShirt" accept="image/png" />
+          <input type="file" id="uploadShirt" accept="image/*" />
           <label for="uploadShirt" class="file-input-label">
             <span class="emoji">👕</span>Upload Shirt
           </label>
         </div>
         <div class="file-input-wrapper">
-          <input type="file" id="uploadWatch" accept="image/png" />
+          <input type="file" id="uploadWatch" accept="image/*" />
           <label for="uploadWatch" class="file-input-label">
             <span class="emoji">⌚</span>Upload Watch
           </label>
         </div>
         <div class="file-input-wrapper">
-          <input type="file" id="uploadGoggles" accept="image/png" />
+          <input type="file" id="uploadGoggles" accept="image/*" />
           <label for="uploadGoggles" class="file-input-label">
             <span class="emoji">🕶</span>Upload Goggles
           </label>
@@ -315,7 +300,10 @@
       <video id="video" autoplay playsinline muted></video>
       <canvas id="overlayCanvas" width="640" height="480"></canvas>
       <div class="status-indicator" id="statusIndicator">Initializing...</div>
-      <div class="debug-info" id="debugInfo">Debug info...</div>
+      <div class="debug-info" id="debugInfo">
+        Pose: Waiting...<br>
+        Overlays: 0/3
+      </div>
     </div>
   </section>
 
@@ -337,7 +325,8 @@
 
     // Debug variables
     let frameCount = 0;
-    let lastPoseTime = 0;
+    let poseDetected = false;
+    let overlaysDrawn = 0;
 
     // 3D Rotator variables
     let isDragging = false;
@@ -349,13 +338,13 @@
         const file = e.target.files[0];
         if (!file) return;
         
-        console.log(`Loading ${overlayType} image:`, file.name);
+        console.log(`Loading ${overlayType} image:`, file.name, file.type);
         
         const reader = new FileReader();
         reader.onload = ev => {
           imageObj.src = ev.target.result;
           
-          // Update preview for any overlay type
+          // Update preview
           const preview = document.getElementById("staticPreview");
           const placeholder = document.getElementById("rotatorPlaceholder");
           preview.src = ev.target.result;
@@ -373,7 +362,7 @@
       
       imageObj.onload = () => { 
         window[flagVar] = true;
-        console.log(`${overlayType} ready for overlay`);
+        console.log(`${overlayType} ready for overlay, dimensions:`, imageObj.width, 'x', imageObj.height);
         updateStatus();
       };
       
@@ -418,7 +407,7 @@
     let latestResults = null;
     let poseInitialized = false;
 
-    // Initialize Pose only
+    // Initialize Pose
     const pose = new Pose({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
     });
@@ -427,23 +416,25 @@
       modelComplexity: 1,
       smoothLandmarks: true,
       enableSegmentation: false,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5,
+      minDetectionConfidence: 0.3,
+      minTrackingConfidence: 0.3,
     });
     
     pose.onResults((results) => { 
       latestResults = results;
-      lastPoseTime = Date.now();
-      if (!poseInitialized) {
+      poseDetected = results && results.poseLandmarks && results.poseLandmarks.length > 0;
+      if (!poseInitialized && poseDetected) {
         poseInitialized = true;
-        console.log('Pose model initialized successfully');
+        console.log('Pose model initialized and detecting pose');
       }
     });
 
     const camera = new Camera(video, {
       onFrame: async () => {
-        if (poseInitialized) {
+        try {
           await pose.send({ image: video });
+        } catch (error) {
+          console.error('Pose detection error:', error);
         }
       },
       width: 640,
@@ -467,6 +458,7 @@
     function animate() {
       requestAnimationFrame(animate);
       frameCount++;
+      overlaysDrawn = 0;
 
       // Clear and draw flipped video
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -476,100 +468,125 @@
       ctx.restore();
 
       // Update debug info
-      if (frameCount % 30 === 0) { // Update every 30 frames
-        const timeSinceLastPose = Date.now() - lastPoseTime;
+      if (frameCount % 30 === 0) {
+        const loadedCount = [shirtLoaded, watchLoaded, gogglesLoaded].filter(Boolean).length;
         debugInfo.innerHTML = `
-          Pose: ${latestResults && latestResults.poseLandmarks ? 'Detected' : 'None'}<br>
-          Shirt: ${shirtLoaded ? 'Loaded' : 'None'}<br>
-          Watch: ${watchLoaded ? 'Loaded' : 'None'}<br>
-          Goggles: ${gogglesLoaded ? 'Loaded' : 'None'}<br>
-          Last pose: ${timeSinceLastPose}ms ago
+          Pose: ${poseDetected ? 'DETECTED' : 'NONE'}<br>
+          Overlays: ${loadedCount}/3<br>
+          Frame: ${frameCount}<br>
+          Drawing: ${overlaysDrawn}
         `;
       }
 
-      if (!latestResults || !latestResults.poseLandmarks) return;
+      if (!latestResults || !latestResults.poseLandmarks) {
+        return;
+      }
 
       const w = canvas.width;
       const h = canvas.height;
       const landmarks = latestResults.poseLandmarks;
 
-      // Get landmarks with flipped x coordinates
-      const leftShoulder = landmarks[11] ? { x: 1 - landmarks[11].x, y: landmarks[11].y, visibility: landmarks[11].visibility } : null;
-      const rightShoulder = landmarks[12] ? { x: 1 - landmarks[12].x, y: landmarks[12].y, visibility: landmarks[12].visibility } : null;
-      const leftHip = landmarks[23] ? { x: 1 - landmarks[23].x, y: landmarks[23].y, visibility: landmarks[23].visibility } : null;
-      const rightHip = landmarks[24] ? { x: 1 - landmarks[24].x, y: landmarks[24].y, visibility: landmarks[24].visibility } : null;
-      const rightWrist = landmarks[16] ? { x: 1 - landmarks[16].x, y: landmarks[16].y, visibility: landmarks[16].visibility } : null;
-      const leftEye = landmarks[2] ? { x: 1 - landmarks[2].x, y: landmarks[2].y, visibility: landmarks[2].visibility } : null;
-      const rightEye = landmarks[5] ? { x: 1 - landmarks[5].x, y: landmarks[5].y, visibility: landmarks[5].visibility } : null;
-
-      // Draw pose landmarks for debugging (small dots)
+      // Draw pose skeleton for debugging
+      ctx.strokeStyle = 'lime';
+      ctx.lineWidth = 2;
       ctx.fillStyle = 'red';
-      if (leftShoulder && leftShoulder.visibility > 0.5) {
-        ctx.fillRect(leftShoulder.x * w - 2, leftShoulder.y * h - 2, 4, 4);
+
+      // Key landmarks with proper indices
+      const nose = landmarks[0];
+      const leftEye = landmarks[2];
+      const rightEye = landmarks[5];
+      const leftShoulder = landmarks[11];
+      const rightShoulder = landmarks[12];
+      const leftElbow = landmarks[13];
+      const rightElbow = landmarks[14];
+      const leftWrist = landmarks[15];
+      const rightWrist = landmarks[16];
+      const leftHip = landmarks[23];
+      const rightHip = landmarks[24];
+
+      // Draw debug dots for key landmarks
+      function drawLandmark(landmark, color = 'red') {
+        if (landmark && landmark.visibility > 0.3) {
+          ctx.fillStyle = color;
+          const x = (1 - landmark.x) * w; // Flip x coordinate
+          const y = landmark.y * h;
+          ctx.fillRect(x - 3, y - 3, 6, 6);
+          return { x: x / w, y: y / h, visibility: landmark.visibility };
+        }
+        return null;
       }
-      if (rightShoulder && rightShoulder.visibility > 0.5) {
-        ctx.fillRect(rightShoulder.x * w - 2, rightShoulder.y * h - 2, 4, 4);
-      }
 
-      // Shirt overlay
-      if (shirtLoaded && leftShoulder && rightShoulder && leftHip && rightHip &&
-          leftShoulder.visibility > 0.5 && rightShoulder.visibility > 0.5) {
-        
-        const centerX = (leftShoulder.x + rightShoulder.x) / 2 * w;
-        const centerY = (leftShoulder.y + rightShoulder.y) / 2 * h;
-        const hipY = (leftHip.y + rightHip.y) / 2 * h;
+      // Draw key landmarks
+      const flippedNose = drawLandmark(nose, 'blue');
+      const flippedLeftEye = drawLandmark(leftEye, 'green');
+      const flippedRightEye = drawLandmark(rightEye, 'green');
+      const flippedLeftShoulder = drawLandmark(leftShoulder, 'yellow');
+      const flippedRightShoulder = drawLandmark(rightShoulder, 'yellow');
+      const flippedLeftHip = drawLandmark(leftHip, 'orange');
+      const flippedRightHip = drawLandmark(rightHip, 'orange');
+      const flippedRightWrist = drawLandmark(rightWrist, 'purple');
 
-        const torsoH = Math.max(Math.abs(hipY - centerY) * 2.0, 100); // Minimum height
-        const torsoW = Math.max(Math.abs(rightShoulder.x - leftShoulder.x) * w * 2.5, 80); // Minimum width
+      // SHIRT OVERLAY
+      if (shirtLoaded && flippedLeftShoulder && flippedRightShoulder && flippedLeftHip && flippedRightHip) {
+        const centerX = (flippedLeftShoulder.x + flippedRightShoulder.x) / 2 * w;
+        const centerY = (flippedLeftShoulder.y + flippedRightShoulder.y) / 2 * h;
+        const hipY = (flippedLeftHip.y + flippedRightHip.y) / 2 * h;
 
-        const dx = (rightShoulder.x - leftShoulder.x) * w;
-        const dy = (rightShoulder.y - leftShoulder.y) * h;
+        const torsoH = Math.abs(hipY - centerY) * 2.5; // Increased multiplier
+        const torsoW = Math.abs(flippedRightShoulder.x - flippedLeftShoulder.x) * w * 3.0; // Increased
+
+        // Calculate rotation
+        const dx = (flippedRightShoulder.x - flippedLeftShoulder.x) * w;
+        const dy = (flippedRightShoulder.y - flippedLeftShoulder.y) * h;
         const angle = Math.atan2(dy, dx);
 
         ctx.save();
-        ctx.globalAlpha = 0.8; // Make slightly transparent
+        ctx.globalAlpha = 0.9;
         ctx.translate(centerX, centerY + torsoH / 3);
         ctx.rotate(angle);
         ctx.drawImage(shirtImg, -torsoW / 2, -torsoH / 2, torsoW, torsoH);
         ctx.restore();
         
-        console.log('Shirt drawn at:', centerX, centerY + torsoH / 3, 'size:', torsoW, torsoH);
+        overlaysDrawn++;
+        console.log(`Shirt drawn: center(${centerX.toFixed(0)}, ${(centerY + torsoH / 3).toFixed(0)}), size(${torsoW.toFixed(0)}, ${torsoH.toFixed(0)}), angle: ${(angle * 180 / Math.PI).toFixed(1)}°`);
       }
 
-      // Watch overlay
-      if (watchLoaded && rightWrist && rightWrist.visibility > 0.5) {
-        const wx = rightWrist.x * w;
-        const wy = rightWrist.y * h;
-        const watchW = w * 0.15;
+      // WATCH OVERLAY
+      if (watchLoaded && flippedRightWrist) {
+        const wx = flippedRightWrist.x * w;
+        const wy = flippedRightWrist.y * h;
+        const watchW = w * 0.2; // Increased size
         const watchH = watchW * (watchImg.height / watchImg.width);
         
         ctx.save();
-        ctx.globalAlpha = 0.8;
+        ctx.globalAlpha = 0.9;
         ctx.translate(wx, wy);
         ctx.drawImage(watchImg, -watchW / 2, -watchH / 2, watchW, watchH);
         ctx.restore();
         
-        console.log('Watch drawn at:', wx, wy);
+        overlaysDrawn++;
+        console.log(`Watch drawn at: (${wx.toFixed(0)}, ${wy.toFixed(0)}), size: ${watchW.toFixed(0)}x${watchH.toFixed(0)}`);
       }
 
-      // Goggles overlay (using pose eye landmarks)
-      if (gogglesLoaded && leftEye && rightEye && leftEye.visibility > 0.5 && rightEye.visibility > 0.5) {
-        const eyeCenterX = (leftEye.x + rightEye.x) / 2 * w;
-        const eyeCenterY = (leftEye.y + rightEye.y) / 2 * h;
+      // GOGGLES OVERLAY
+      if (gogglesLoaded && flippedLeftEye && flippedRightEye) {
+        const eyeCenterX = (flippedLeftEye.x + flippedRightEye.x) / 2 * w;
+        const eyeCenterY = (flippedLeftEye.y + flippedRightEye.y) / 2 * h;
 
-        const eyeDistance = Math.abs(leftEye.x - rightEye.x) * w;
-        const gogglesW = Math.max(eyeDistance * 3.0, 120); // Minimum width
+        const eyeDistance = Math.abs(flippedLeftEye.x - flippedRightEye.x) * w;
+        const gogglesW = eyeDistance * 4.0; // Increased multiplier
         const gogglesH = gogglesW * (gogglesImg.height / gogglesImg.width);
 
         const verticalOffset = gogglesH * 0.1;
 
         ctx.save();
-        ctx.globalAlpha = 0.8;
+        ctx.globalAlpha = 0.9;
         ctx.translate(eyeCenterX, eyeCenterY - verticalOffset);
         ctx.drawImage(gogglesImg, -gogglesW / 2, -gogglesH / 2, gogglesW, gogglesH);
         ctx.restore();
         
-        console.log('Goggles drawn at:', eyeCenterX, eyeCenterY - verticalOffset);
+        overlaysDrawn++;
+        console.log(`Goggles drawn at: (${eyeCenterX.toFixed(0)}, ${(eyeCenterY - verticalOffset).toFixed(0)}), size: ${gogglesW.toFixed(0)}x${gogglesH.toFixed(0)}`);
       }
     }
 
