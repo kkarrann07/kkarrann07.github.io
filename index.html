@@ -43,7 +43,7 @@
       z-index: 1;
       object-fit: cover;
     }
-    canvas#output {
+    canvas {
       position: absolute;
       top: 0;
       left: 0;
@@ -51,18 +51,6 @@
       height: 480px;
       border-radius: 12px;
       z-index: 2;
-      pointer-events: none;
-    }
-    canvas#three-canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 640px;
-      height: 480px;
-      border-radius: 12px;
-      z-index: 3;
-      pointer-events: none;
-      background: transparent;
     }
     input[type="file"] {
       margin-top: 10px;
@@ -112,9 +100,9 @@
   </section>
 
   <section>
-    <h2>🖼 Upload Your Clothing Image or 3D Model</h2>
-    <p>Choose a shirt/top image (transparent PNG) or 3D model (.glb/.gltf).</p>
-    <input type="file" id="upload" accept="image/*,.glb,.gltf" />
+    <h2>🖼 Upload Your Clothing Image</h2>
+    <p>Choose a shirt/top image (preferably transparent PNG).</p>
+    <input type="file" id="upload" accept="image/*" />
     <div class="static-shirt" aria-label="Static Shirt Viewer">
       <p>🖼 Preview (3D Rotator):</p>
       <div class="rotator" id="rotator">
@@ -125,11 +113,10 @@
 
   <section>
     <h2>🕶 AR Clothing Try-On</h2>
-    <p>Turn on your camera. Your uploaded shirt or 3D model will overlay your body in real time.</p>
+    <p>Turn on your camera. Your uploaded shirt will overlay your body in real time.</p>
     <div class="ar-container">
       <video id="video" autoplay playsinline></video>
       <canvas id="output" width="640" height="480"></canvas>
-      <canvas id="three-canvas" width="640" height="480"></canvas>
     </div>
   </section>
 
@@ -137,102 +124,53 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
 
-  <!-- Three.js Libraries -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/examples/js/loaders/GLTFLoader.js"></script>
-
   <script>
-    // Elements
     const videoElement = document.getElementById('video');
-    const canvas2d = document.getElementById('output');
-    const ctx = canvas2d.getContext('2d');
+    const canvasElement = document.getElementById('output');
+    const ctx = canvasElement.getContext('2d');
+
     const staticPreview = document.getElementById('staticPreview');
+    const rotator = document.getElementById('rotator');
 
-    // 3D Canvas & Three.js setup
-    const canvas3d = document.getElementById('three-canvas');
-    const renderer = new THREE.WebGLRenderer({ canvas: canvas3d, alpha: true, antialias: true });
-    renderer.setSize(640, 480);
-    renderer.setClearColor(0x000000, 0); // Transparent background
-
-    const scene = new THREE.Scene();
-
-    const camera3d = new THREE.PerspectiveCamera(45, 640 / 480, 0.1, 1000);
-    camera3d.position.set(0, 0, 5);
-    camera3d.lookAt(0, 0, 0);
-
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-    scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    directionalLight.position.set(0, 1, 1);
-    scene.add(directionalLight);
-
-    let shirt3d = null;
     let shirtImage = new Image();
     let shirtLoaded = false;
-    let is3dModelLoaded = false;
 
-    // File upload handler - image or 3D model
-    document.getElementById('upload').addEventListener('change', (e) => {
-      const file = e.target.files[0];
+    // Upload and prepare the shirt image
+    document.getElementById('upload').addEventListener('change', (event) => {
+      const file = event.target.files[0];
       if (!file) return;
 
-      const fileName = file.name.toLowerCase();
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const uploadedImage = new Image();
+        uploadedImage.onload = () => {
+          // Resize to max 512px for performance
+          const maxSize = 512;
+          const ratio = Math.min(maxSize / uploadedImage.width, maxSize / uploadedImage.height, 1);
+          const offCanvas = document.createElement('canvas');
+          offCanvas.width = uploadedImage.width * ratio;
+          offCanvas.height = uploadedImage.height * ratio;
+          const offCtx = offCanvas.getContext('2d');
+          offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
+          offCtx.drawImage(uploadedImage, 0, 0, offCanvas.width, offCanvas.height);
 
-      if (fileName.endsWith('.glb') || fileName.endsWith('.gltf')) {
-        // Load 3D model
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const arrayBuffer = ev.target.result;
-          const loader = new THREE.GLTFLoader();
-          loader.parse(arrayBuffer, '', (gltf) => {
-            if (shirt3d) scene.remove(shirt3d);
-            shirt3d = gltf.scene;
-            shirt3d.scale.set(1,1,1);
-            scene.add(shirt3d);
-            is3dModelLoaded = true;
-            shirtLoaded = true;
-            staticPreview.src = ''; // Clear static preview
-          }, (error) => {
-            alert("Failed to load 3D model.");
-            console.error(error);
-          });
+          shirtImage.src = offCanvas.toDataURL("image/png");
+          staticPreview.src = shirtImage.src;
         };
-        reader.readAsArrayBuffer(file);
-      } else {
-        // Load image fallback
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const uploadedImage = new Image();
-          uploadedImage.onload = () => {
-            // Resize large images for performance
-            const maxSize = 512;
-            const ratio = Math.min(maxSize / uploadedImage.width, maxSize / uploadedImage.height, 1);
-            const offCanvas = document.createElement('canvas');
-            offCanvas.width = uploadedImage.width * ratio;
-            offCanvas.height = uploadedImage.height * ratio;
-            const offCtx = offCanvas.getContext('2d');
-            offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
-            offCtx.drawImage(uploadedImage, 0, 0, offCanvas.width, offCanvas.height);
-            shirtImage.src = offCanvas.toDataURL('image/png');
-            staticPreview.src = shirtImage.src;
-            shirtLoaded = true;
-            is3dModelLoaded = false;
-            if (shirt3d) {
-              scene.remove(shirt3d);
-              shirt3d = null;
-            }
-          };
-          uploadedImage.onerror = () => {
-            alert("Could not load image. Please try a transparent PNG.");
-            shirtLoaded = false;
-          };
-          uploadedImage.src = ev.target.result;
+        uploadedImage.onerror = () => {
+          shirtLoaded = false;
+          alert("Could not load image. Please try a transparent PNG.");
         };
-        reader.readAsDataURL(file);
-      }
+        uploadedImage.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
     });
 
-    // MediaPipe Pose setup
+    shirtImage.onload = () => {
+      shirtLoaded = true;
+    };
+
+    // Setup MediaPipe Pose
     const pose = new Pose({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
     });
@@ -245,67 +183,85 @@
       minTrackingConfidence: 0.5,
     });
 
-    pose.onResults(onResults);
+    let latestPoseResults = null;
+    pose.onResults((results) => {
+      latestPoseResults = results;
+    });
 
+    // Initialize camera
     const camera = new Camera(videoElement, {
       onFrame: async () => {
         await pose.send({ image: videoElement });
       },
       width: 640,
-      height: 480
+      height: 480,
     });
+
     camera.start();
 
-    function onResults(results) {
-      // Draw flipped video on 2D canvas
-      ctx.clearRect(0, 0, canvas2d.width, canvas2d.height);
-      ctx.save();
-      ctx.scale(-1, 1);
-      ctx.drawImage(results.image, -canvas2d.width, 0, canvas2d.width, canvas2d.height);
-      ctx.restore();
+    // Rotator UI (3D rotate effect)
+    let isDragging = false;
+    let startX = 0;
+    let rotationY = 0;
 
-      if (!results.poseLandmarks || !shirtLoaded) {
-        if (shirt3d) renderer.render(scene, camera3d);
+    rotator.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      rotator.style.cursor = 'grabbing';
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDragging = false;
+      rotator.style.cursor = 'grab';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      startX = e.clientX;
+      rotationY += dx * 0.5; // sensitivity
+      staticPreview.style.transform = `rotateY(${rotationY}deg)`;
+    });
+
+    // Main animation/render loop
+    function animate() {
+      requestAnimationFrame(animate);
+
+      if (!latestPoseResults) {
+        // No pose detected yet, just draw flipped video
+        ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(videoElement, -canvasElement.width, 0, canvasElement.width, canvasElement.height);
+        ctx.restore();
         return;
       }
 
-      const lm = results.poseLandmarks.map(p => ({
-        x: 1 - p.x,
-        y: p.y,
-        z: p.z,
-        visibility: p.visibility
-      }));
+      // Draw flipped video frame
+      ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.drawImage(latestPoseResults.image, -canvasElement.width, 0, canvasElement.width, canvasElement.height);
+      ctx.restore();
 
-      const leftShoulder = lm[11];
-      const rightShoulder = lm[12];
-      const leftHip = lm[23];
-      const rightHip = lm[24];
+      if (latestPoseResults.poseLandmarks && shirtLoaded) {
+        const lm = latestPoseResults.poseLandmarks.map(p => ({
+          x: 1 - p.x,
+          y: p.y,
+          z: p.z,
+          visibility: p.visibility
+        }));
 
-      if (leftShoulder && rightShoulder && leftHip && rightHip) {
-        const w = canvas2d.width;
-        const h = canvas2d.height;
+        const leftShoulder = lm[11];
+        const rightShoulder = lm[12];
+        const leftHip = lm[23];
+        const rightHip = lm[24];
 
-        const centerX = ((leftShoulder.x + rightShoulder.x) / 2) * w - w / 2;
-        const centerY = -(((leftShoulder.y + rightShoulder.y) / 2) * h - h / 2);
+        if (leftShoulder && rightShoulder && leftHip && rightHip) {
+          const w = canvasElement.width;
+          const h = canvasElement.height;
 
-        const hipY = ((leftHip.y + rightHip.y) / 2) * h;
-        const torsoHeight = hipY - ((leftShoulder.y + rightShoulder.y) / 2) * h;
+          const centerX = ((leftShoulder.x + rightShoulder.x) / 2) * w;
+          const centerY = ((leftShoulder.y + rightShoulder.y) / 2) * h;
 
-        const shoulderDX = (rightShoulder.x - leftShoulder.x) * w;
-        const shoulderDY = (rightShoulder.y - leftShoulder.y) * h;
-        const shoulderDist = Math.sqrt(shoulderDX * shoulderDX + shoulderDY * shoulderDY);
-        const angle = Math.atan2(shoulderDY, shoulderDX);
-
-        if (is3dModelLoaded && shirt3d) {
-          // Position 3D model
-          shirt3d.position.set(centerX * 0.01, centerY * 0.01, 0);
-          shirt3d.scale.set(shoulderDist * 0.01, torsoHeight * 0.01, shoulderDist * 0.01);
-          shirt3d.rotation.set(0, 0, angle);
-          renderer.render(scene, camera3d);
-        } else if (!is3dModelLoaded && shirtImage) {
-          // Draw 2D shirt image overlay
-          const shirtWidth = shoulderDist * 1.5;
-          const shirtHeight = torsoHeight * 2.1;
-          const shirtY = ((leftShoulder.y + rightShoulder.y) / 2) * h + torsoHeight * 0.05;
-
-          ctx
+          const hipY = ((
