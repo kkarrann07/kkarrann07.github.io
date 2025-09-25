@@ -32,30 +32,19 @@
       height: 480px;
       margin: auto;
     }
-    video {
+    video, canvas {
       position: absolute;
       top: 0;
       left: 0;
       width: 640px;
       height: 480px;
       border-radius: 12px;
-      transform: scaleX(-1);
-      z-index: 1;
       object-fit: cover;
     }
-    canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 640px;
-      height: 480px;
-      border-radius: 12px;
-      z-index: 2;
-      pointer-events: none;
-    }
-    input[type="file"] {
-      margin-top: 10px;
-    }
+    video { z-index: 1; transform: scaleX(-1); }
+    canvas { z-index: 2; pointer-events: none; }
+
+    input[type="file"] { margin-top: 10px; }
     .static-shirt {
       margin-top: 1rem;
       perspective: 800px;
@@ -86,9 +75,7 @@
       backface-visibility: hidden;
       transform-style: preserve-3d;
     }
-    .rotator:active {
-      cursor: grabbing;
-    }
+    .rotator:active { cursor: grabbing; }
   </style>
 </head>
 <body>
@@ -132,49 +119,41 @@
     const canvas = document.getElementById('overlayCanvas');
     const ctx = canvas.getContext('2d');
 
-    // Overlays
+    // Overlay images
     let shirtImg = new Image();
     let watchImg = new Image();
     let gogglesImg = new Image();
     let shirtLoaded = false, watchLoaded = false, gogglesLoaded = false;
 
-    document.getElementById('uploadShirt').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        shirtImg.src = ev.target.result;
+    const setPreview = (img, targetId) => {
+      img.onload = () => {
+        if(targetId) document.getElementById(targetId).src = img.src;
       };
-      reader.readAsDataURL(file);
-    });
-    shirtImg.onload = () => { shirtLoaded = true; };
+    };
 
-    document.getElementById('uploadWatch').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+    document.getElementById('uploadShirt').addEventListener('change', e => {
+      const file = e.target.files[0]; if(!file) return;
       const reader = new FileReader();
-      reader.onload = (ev) => {
-        watchImg.src = ev.target.result;
-      };
+      reader.onload = ev => { shirtImg.src = ev.target.result; shirtLoaded=true; setPreview(shirtImg, 'staticPreview'); };
       reader.readAsDataURL(file);
     });
-    watchImg.onload = () => { watchLoaded = true; };
-
-    document.getElementById('uploadGoggles').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+    document.getElementById('uploadWatch').addEventListener('change', e => {
+      const file = e.target.files[0]; if(!file) return;
       const reader = new FileReader();
-      reader.onload = (ev) => {
-        gogglesImg.src = ev.target.result;
-      };
+      reader.onload = ev => { watchImg.src = ev.target.result; watchLoaded=true; setPreview(watchImg, 'staticPreview'); };
       reader.readAsDataURL(file);
     });
-    gogglesImg.onload = () => { gogglesLoaded = true; };
+    document.getElementById('uploadGoggles').addEventListener('change', e => {
+      const file = e.target.files[0]; if(!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => { gogglesImg.src = ev.target.result; gogglesLoaded=true; setPreview(gogglesImg, 'staticPreview'); };
+      reader.readAsDataURL(file);
+    });
 
     let latestResults = null;
 
     const pose = new Pose({
-      locateFile: (file) => https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}
+      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
     });
     pose.setOptions({
       modelComplexity: 1,
@@ -183,111 +162,78 @@
       minDetectionConfidence: 0.5,
       minTrackingConfidence: 0.5,
     });
-    pose.onResults((results) => {
-      latestResults = results;
-    });
+    pose.onResults(results => { latestResults = results; });
 
-    const camera = new Camera(video, {
-      onFrame: async () => {
-        await pose.send({ image: video });
-      },
-      width: 640,
-      height: 480,
-    });
-    camera.start().catch(err => {
-      console.error("Camera start error:", err);
-      alert("Cannot access camera: " + err.message);
-    });
+    // Use navigator.mediaDevices for webcam
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+        video.srcObject = stream;
+        const cameraInterval = new Camera(video, { onFrame: async () => { await pose.send({ image: video }); }, width: 640, height: 480 });
+        cameraInterval.start();
+      } catch(err) {
+        console.error("Camera error:", err);
+        alert("Cannot access camera: " + err.message);
+      }
+    }
+    startCamera();
 
     function animate() {
       requestAnimationFrame(animate);
-
-      if (!latestResults) {
-        // Just show mirrored video
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.save();
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
-        ctx.restore();
+      if(!latestResults) {
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.save(); ctx.scale(-1,1); ctx.drawImage(video,-canvas.width,0,canvas.width,canvas.height); ctx.restore();
         return;
       }
 
-      // Draw mirrored video
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.save();
-      ctx.scale(-1, 1);
-      ctx.drawImage(latestResults.image, -canvas.width, 0, canvas.width, canvas.height);
-      ctx.restore();
+      const lm = latestResults.poseLandmarks.map(p=>({ x:1-p.x, y:p.y, z:p.z, visibility:p.visibility }));
 
-      const lm = latestResults.poseLandmarks.map(p => ({
-        x: 1 - p.x,
-        y: p.y,
-        z: p.z,
-        visibility: p.visibility
-      }));
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.save(); ctx.scale(-1,1); ctx.drawImage(latestResults.image,-canvas.width,0,canvas.width,canvas.height); ctx.restore();
 
-      const leftShoulder = lm[11];
-      const rightShoulder = lm[12];
-      const leftHip = lm[23];
-      const rightHip = lm[24];
-      const nose = lm[0];  // use nose for goggles approx
+      const leftShoulder = lm[11], rightShoulder = lm[12], leftHip = lm[23], rightHip = lm[24];
+      const leftEye = lm[33], rightEye = lm[263], rightWrist = lm[16], leftWrist = lm[15];
 
-      if (leftShoulder && rightShoulder && leftHip && rightHip) {
-        const w = canvas.width;
-        const h = canvas.height;
+      const w = canvas.width, h = canvas.height;
 
-        // Shirt overlay
-        if (shirtLoaded) {
-          const centerX = ((leftShoulder.x + rightShoulder.x) / 2) * w;
-          const centerY = ((leftShoulder.y + rightShoulder.y) / 2) * h;
+      // Shirt overlay
+      if(shirtLoaded && leftShoulder && rightShoulder && leftHip && rightHip){
+        const cx = (leftShoulder.x + rightShoulder.x)/2*w;
+        const cy = (leftShoulder.y + rightShoulder.y)/2*h;
+        const hipY = (leftHip.y + rightHip.y)/2*h;
+        const torsoH = hipY - cy;
+        const dx = (rightShoulder.x - leftShoulder.x)*w;
+        const dy = (rightShoulder.y - leftShoulder.y)*h;
+        const angle = Math.atan2(dy, dx);
+        const shirtW = Math.sqrt(dx*dx+dy*dy)*1.5;
+        const shirtH = torsoH*2.0;
+        const shirtY = cy + torsoH*0.1;
+        ctx.save();
+        ctx.translate(cx, shirtY + shirtH/2);
+        ctx.rotate(angle);
+        ctx.drawImage(shirtImg, -shirtW/2, -shirtH/2, shirtW, shirtH);
+        ctx.restore();
+      }
 
-          const hipY = ((leftHip.y + rightHip.y) / 2) * h;
-          const torsoH = hipY - centerY;
-
-          const dx = (rightShoulder.x - leftShoulder.x) * w;
-          const dy = (rightShoulder.y - leftShoulder.y) * h;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          const angle = Math.atan2(dy, dx);
-
-          const shirtW = dist * 1.5;
-          const shirtH = torsoH * 2.1;
-          const shirtY = centerY + torsoH * 0.05;
-
-          ctx.save();
-          ctx.translate(centerX, shirtY + shirtH / 2);
-          ctx.rotate(angle);
-          ctx.drawImage(shirtImg, -shirtW/2, -shirtH/2, shirtW, shirtH);
-          ctx.restore();
-        }
-
-        // Watch overlay: approximate near wrist position
-        if (watchLoaded) {
-          // choose right wrist landmark (lm[16]) as example
-          const wrist = lm[16];
-          if (wrist) {
-            const wx = wrist.x * w;
-            const wy = wrist.y * h;
-            const watchW = w * 0.2;
-            const watchH = watchW * (watchImg.height / watchImg.width);
-            ctx.save();
-            ctx.translate(wx, wy);
-            ctx.drawImage(watchImg, -watchW/2, -watchH/2, watchW, watchH);
-            ctx.restore();
+      // Watch overlay (both wrists)
+      if(watchLoaded){
+        [leftWrist, rightWrist].forEach(wrist=>{
+          if(wrist){
+            const wx = wrist.x*w, wy = wrist.y*h;
+            const watchW = w*0.15;
+            const watchH = watchW*(watchImg.height/watchImg.width);
+            ctx.save(); ctx.translate(wx, wy); ctx.drawImage(watchImg, -watchW/2, -watchH/2, watchW, watchH); ctx.restore();
           }
-        }
+        });
+      }
 
-        // Goggles overlay
-        if (gogglesLoaded && nose) {
-          const gx = nose.x * w;
-          const gy = nose.y * h;
-          const gW = (rightShoulder.x - leftShoulder.x) * w * 0.6;
-          const gH = gW * (gogglesImg.height / gogglesImg.width);
-
-          ctx.save();
-          ctx.translate(gx, gy);
-          ctx.drawImage(gogglesImg, -gW/2, -gH/2, gW, gH);
-          ctx.restore();
-        }
+      // Goggles overlay (eyes)
+      if(gogglesLoaded && leftEye && rightEye){
+        const gx = (leftEye.x + rightEye.x)/2*w;
+        const gy = (leftEye.y + rightEye.y)/2*h;
+        const gW = Math.hypot(rightEye.x-leftEye.x, rightEye.y-leftEye.y)*w*2;
+        const gH = gW*(gogglesImg.height/gogglesImg.width);
+        ctx.save(); ctx.translate(gx, gy); ctx.drawImage(gogglesImg, -gW/2, -gH/2, gW, gH); ctx.restore();
       }
     }
 
