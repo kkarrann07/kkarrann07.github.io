@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Checy-On</title>
+  <title>ChechIT – AR Try-On</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { 
@@ -38,9 +38,9 @@
     iframe:hover { transform:translateY(-5px); }
     
     .upload-section { 
-      display:flex; justify-content:space-around; flex-wrap:wrap; 
-      gap:1.5rem; margin-bottom:2rem;
+      display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start;
     }
+    .upload-controls { display:flex; flex-direction:column; gap:1.5rem; }
     .upload-wrapper { position:relative; overflow:hidden; }
     .upload-wrapper input { 
       position:absolute; opacity:0; width:100%; height:100%; cursor:pointer;
@@ -56,13 +56,29 @@
       transform:translateY(-2px); 
       box-shadow:0 6px 20px rgba(102,126,234,0.6);
     }
-    .upload-btn.loaded { 
+    .upload-btn.active { 
       background:linear-gradient(135deg,#4CAF50,#45a049);
       box-shadow:0 4px 15px rgba(76,175,80,0.4);
     }
     
+    .preview-section { perspective:800px; }
+    .rotator { 
+      width:320px; height:400px; border:2px solid #ddd; 
+      border-radius:15px; background:#fafafa; 
+      display:flex; align-items:center; justify-content:center; 
+      cursor:grab; transform-style:preserve-3d; margin:0 auto;
+    }
+    .rotator img { 
+      max-width:90%; max-height:90%; pointer-events:none; 
+      user-select:none; backface-visibility:hidden; transition:transform 0.1s;
+    }
+    .rotator:active { cursor:grabbing; }
+    .rotator-placeholder { 
+      color:#999; text-align:center; font-size:1rem;
+    }
+    
     .ar-container { 
-      position:relative; width:640px; height:480px; margin:auto; 
+      position:relative; width:640px; height:480px; margin:2rem auto; 
       border-radius:20px; overflow:hidden; 
       box-shadow:0 10px 30px rgba(0,0,0,0.3); background:#000;
     }
@@ -83,7 +99,7 @@
     .emoji { font-size:1.2rem; margin-right:8px; }
     
     @media (max-width:768px) {
-      .upload-section { flex-direction:column; align-items:center; }
+      .upload-section { grid-template-columns:1fr; }
       .ar-container { width:90vw; height:calc(90vw * 0.75); max-width:640px; }
       section { margin:1rem; padding:1.5rem; }
     }
@@ -100,24 +116,37 @@
 
   <section>
     <h2><span class="emoji">🖼</span>Upload Overlays</h2>
-    <p>Upload transparent PNG files for virtual try-on experience.</p>
+    <p>Upload one item at a time for virtual try-on experience.</p>
     <div class="upload-section">
-      <div class="upload-wrapper">
-        <input id="uploadShirt" type="file" accept="image/png" />
-        <div class="upload-btn" id="shirtBtn">
-          <span class="emoji">👕</span>Upload Shirt
+      <div class="upload-controls">
+        <div class="upload-wrapper">
+          <input id="uploadShirt" type="file" accept="image/png" />
+          <div class="upload-btn" id="shirtBtn">
+            <span class="emoji">👕</span>Upload Shirt
+          </div>
+        </div>
+        <div class="upload-wrapper">
+          <input id="uploadWatch" type="file" accept="image/png" />
+          <div class="upload-btn" id="watchBtn">
+            <span class="emoji">⌚</span>Upload Watch
+          </div>
+        </div>
+        <div class="upload-wrapper">
+          <input id="uploadGoggles" type="file" accept="image/png" />
+          <div class="upload-btn" id="gogglesBtn">
+            <span class="emoji">🕶</span>Upload Goggles
+          </div>
         </div>
       </div>
-      <div class="upload-wrapper">
-        <input id="uploadWatch" type="file" accept="image/png" />
-        <div class="upload-btn" id="watchBtn">
-          <span class="emoji">⌚</span>Upload Watch
-        </div>
-      </div>
-      <div class="upload-wrapper">
-        <input id="uploadGoggles" type="file" accept="image/png" />
-        <div class="upload-btn" id="gogglesBtn">
-          <span class="emoji">🕶</span>Upload Goggles
+      <div class="preview-section">
+        <p><span class="emoji">🖼</span>3D Preview:</p>
+        <div class="rotator" id="rotator">
+          <img id="previewImg" src="" style="display:none" />
+          <div class="rotator-placeholder" id="placeholder">
+            <span class="emoji">📱</span><br>
+            3D Rotator<br>
+            <small>Upload an item to preview</small>
+          </div>
         </div>
       </div>
     </div>
@@ -139,18 +168,56 @@
     const shirtOverlay = document.getElementById('shirtOverlay');
     const watchOverlay = document.getElementById('watchOverlay');
     const gogglesOverlay = document.getElementById('gogglesOverlay');
+    const previewImg = document.getElementById('previewImg');
+    const placeholder = document.getElementById('placeholder');
+    const rotator = document.getElementById('rotator');
 
-    // Smoothing for landmarks to prevent jitter/freeze
-    const smoothedLandmarks = {};
-    const smoothingFactor = 0.7;
+    // State management
+    let activeOverlay = null;
+    let smoothedLandmarks = {};
+    const smoothingFactor = 0.3; // Reduced for more responsiveness
 
+    // 3D Rotator
+    let isDragging = false, startX = 0, rotation = 0;
+    
+    function setup3DRotator() {
+      rotator.addEventListener('mousedown', e => {
+        isDragging = true;
+        startX = e.clientX;
+        rotator.style.cursor = 'grabbing';
+      });
+      
+      document.addEventListener('mousemove', e => {
+        if (!isDragging) return;
+        const deltaX = e.clientX - startX;
+        rotation += deltaX * 0.5;
+        previewImg.style.transform = `rotateY(${rotation}deg)`;
+        startX = e.clientX;
+      });
+      
+      document.addEventListener('mouseup', () => {
+        isDragging = false;
+        rotator.style.cursor = 'grab';
+      });
+    }
+    setup3DRotator();
+
+    // Reset smoothing when switching overlays
+    function resetSmoothing() {
+      smoothedLandmarks = {};
+    }
+
+    // Improved smoothing function
     function smoothLandmark(index, landmark) {
+      if (!landmark || landmark.visibility < 0.3) return null;
+      
       if (!smoothedLandmarks[index]) {
         smoothedLandmarks[index] = { x: landmark.x, y: landmark.y };
       } else {
         smoothedLandmarks[index].x = smoothedLandmarks[index].x * smoothingFactor + landmark.x * (1 - smoothingFactor);
         smoothedLandmarks[index].y = smoothedLandmarks[index].y * smoothingFactor + landmark.y * (1 - smoothingFactor);
       }
+      
       return {
         x: smoothedLandmarks[index].x,
         y: smoothedLandmarks[index].y,
@@ -158,8 +225,8 @@
       };
     }
 
-    // Enhanced upload handling with visual feedback
-    function setupInput(inputId, overlayImg, btnId) {
+    // Upload handling - one item at a time
+    function setupInput(inputId, overlayImg, btnId, overlayType) {
       const input = document.getElementById(inputId);
       const btn = document.getElementById(btnId);
       
@@ -167,28 +234,51 @@
         const file = e.target.files[0];
         if (!file) return;
         
-        btn.textContent = 'Loading...';
+        // Reset all overlays and buttons
+        [shirtOverlay, watchOverlay, gogglesOverlay].forEach(o => {
+          o.style.display = 'none';
+          o.src = '';
+        });
+        document.querySelectorAll('.upload-btn').forEach(b => {
+          b.classList.remove('active');
+          b.innerHTML = b.innerHTML.replace('✅ Active', '').replace('Active', 'Upload');
+        });
+        
+        resetSmoothing();
+        btn.innerHTML = '<span class="emoji">⏳</span>Loading...';
+        
         const reader = new FileReader();
         reader.onload = ev => {
           overlayImg.src = ev.target.result;
           overlayImg.style.display = 'block';
-          btn.classList.add('loaded');
-          btn.innerHTML = `<span class="emoji">✅</span>${btn.textContent.replace('Loading...', '').replace('Upload', 'Loaded')}`;
-          statusBar.textContent = `${btnId.replace('Btn', '')} loaded successfully!`;
+          
+          // Update preview
+          previewImg.src = ev.target.result;
+          previewImg.style.display = 'block';
+          placeholder.style.display = 'none';
+          rotation = 0;
+          previewImg.style.transform = 'rotateY(0deg)';
+          
+          // Mark as active
+          btn.classList.add('active');
+          btn.innerHTML = `<span class="emoji">✅</span>Active ${overlayType}`;
+          activeOverlay = overlayType;
+          
+          statusBar.textContent = `${overlayType} loaded - AR Active`;
         };
         reader.readAsDataURL(file);
       });
     }
 
-    setupInput('uploadShirt', shirtOverlay, 'shirtBtn');
-    setupInput('uploadWatch', watchOverlay, 'watchBtn');
-    setupInput('uploadGoggles', gogglesOverlay, 'gogglesBtn');
+    setupInput('uploadShirt', shirtOverlay, 'shirtBtn', 'Shirt');
+    setupInput('uploadWatch', watchOverlay, 'watchBtn', 'Watch');
+    setupInput('uploadGoggles', gogglesOverlay, 'gogglesBtn', 'Goggles');
 
-    // Start camera
+    // Camera setup
     navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
       .then(stream => {
         video.srcObject = stream;
-        statusBar.textContent = 'Camera ready, loading pose detection...';
+        statusBar.textContent = 'Camera ready - Upload an item';
       })
       .catch(err => {
         statusBar.textContent = 'Camera access denied';
@@ -204,15 +294,12 @@
     pose.setOptions({
       modelComplexity: 1,
       smoothLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
+      minDetectionConfidence: 0.3,
+      minTrackingConfidence: 0.3
     });
     
     pose.onResults(results => {
       latestPose = results.poseLandmarks;
-      if (results.poseLandmarks) {
-        statusBar.textContent = 'AR Active - Pose detected';
-      }
     });
 
     new Camera(video, {
@@ -222,7 +309,7 @@
     }).start();
 
     function updateOverlays() {
-      if (!latestPose) {
+      if (!latestPose || !activeOverlay) {
         requestAnimationFrame(updateOverlays);
         return;
       }
@@ -230,9 +317,10 @@
       const w = video.clientWidth;
       const h = video.clientHeight;
 
-      // Helper function with smoothing
+      // Helper function with improved smoothing
       const P = i => {
         const smoothed = smoothLandmark(i, latestPose[i]);
+        if (!smoothed) return null;
         return { 
           x: (1 - smoothed.x) * w, 
           y: smoothed.y * h, 
@@ -240,64 +328,58 @@
         };
       };
 
-      const ls = P(11), rs = P(12), lh = P(23), rh = P(24);
-      const rw = P(16), le = P(2), re = P(5);
-
-      // IMPROVED Shirt overlay
-      if (shirtOverlay.src && ls.v > 0.5 && rs.v > 0.5 && lh.v > 0.5 && rh.v > 0.5) {
-        // Use shoulder center as anchor point
-        const shoulderCenterX = (ls.x + rs.x) / 2;
-        const shoulderCenterY = (ls.y + rs.y) / 2;
-        const hipCenterY = (lh.y + rh.y) / 2;
+      // Only update active overlay
+      if (activeOverlay === 'Shirt') {
+        const ls = P(11), rs = P(12), lh = P(23), rh = P(24);
         
-        // Calculate dimensions based on body proportions
-        const torsoHeight = Math.abs(hipCenterY - shoulderCenterY) * 1.6;
-        const shoulderWidth = Math.hypot(rs.x - ls.x, rs.y - ls.y) * 1.3;
-        
-        // Calculate rotation based on shoulder line
-        const shoulderAngle = Math.atan2(rs.y - ls.y, rs.x - ls.x) * 180 / Math.PI;
-        
-        // Position shirt slightly below shoulders
-        const shirtCenterX = shoulderCenterX;
-        const shirtCenterY = shoulderCenterY + torsoHeight * 0.1;
-        
-        Object.assign(shirtOverlay.style, {
-          width: `${shoulderWidth}px`,
-          height: `${torsoHeight}px`,
-          left: `${shirtCenterX - shoulderWidth/2}px`,
-          top: `${shirtCenterY - torsoHeight/2}px`,
-          transform: `rotate(${shoulderAngle}deg)`,
-          transformOrigin: 'center top'
-        });
-      }
-
-      // Watch overlay (unchanged, working)
-      if (watchOverlay.src && rw.v > 0.5) {
-        const S = w * 0.12;
-        Object.assign(watchOverlay.style, {
-          width: `${S}px`,
-          height: `${S}px`,
-          left: `${rw.x - S/2}px`,
-          top: `${rw.y - S/2}px`,
-          transform: 'rotate(0deg)'
-        });
-      }
-
-      // Goggles overlay (unchanged, working)
-      if (gogglesOverlay.src && le.v > 0.5 && re.v > 0.5) {
-        const cx = (le.x + re.x) / 2;
-        const cy = (le.y + re.y) / 2;
-        const D = Math.hypot(re.x - le.x, re.y - le.y);
-        const GW = D * 2.5;
-        const GH = GW * (gogglesOverlay.naturalHeight / gogglesOverlay.naturalWidth);
-        
-        Object.assign(gogglesOverlay.style, {
-          width: `${GW}px`,
-          height: `${GH}px`,
-          left: `${cx - GW/2}px`,
-          top: `${cy - GH/2}px`,
-          transform: 'rotate(0deg)'
-        });
+        if (ls && rs && lh && rh && ls.v > 0.5 && rs.v > 0.5) {
+          const shoulderCenterX = (ls.x + rs.x) / 2;
+          const shoulderCenterY = (ls.y + rs.y) / 2;
+          const hipCenterY = (lh.y + rh.y) / 2;
+          
+          const torsoHeight = Math.abs(hipCenterY - shoulderCenterY) * 1.5;
+          const shoulderWidth = Math.abs(rs.x - ls.x) * 1.4;
+          const shoulderAngle = Math.atan2(rs.y - ls.y, rs.x - ls.x) * 180 / Math.PI;
+          
+          Object.assign(shirtOverlay.style, {
+            width: `${shoulderWidth}px`,
+            height: `${torsoHeight}px`,
+            left: `${shoulderCenterX - shoulderWidth/2}px`,
+            top: `${shoulderCenterY - torsoHeight/2}px`,
+            transform: `rotate(${shoulderAngle}deg)`
+          });
+        }
+      } 
+      else if (activeOverlay === 'Watch') {
+        const rw = P(16);
+        if (rw && rw.v > 0.5) {
+          const S = w * 0.12;
+          Object.assign(watchOverlay.style, {
+            width: `${S}px`,
+            height: `${S}px`,
+            left: `${rw.x - S/2}px`,
+            top: `${rw.y - S/2}px`,
+            transform: 'rotate(0deg)'
+          });
+        }
+      } 
+      else if (activeOverlay === 'Goggles') {
+        const le = P(2), re = P(5);
+        if (le && re && le.v > 0.5 && re.v > 0.5) {
+          const cx = (le.x + re.x) / 2;
+          const cy = (le.y + re.y) / 2;
+          const D = Math.abs(re.x - le.x);
+          const GW = D * 2.5;
+          const GH = GW * (gogglesOverlay.naturalHeight / gogglesOverlay.naturalWidth);
+          
+          Object.assign(gogglesOverlay.style, {
+            width: `${GW}px`,
+            height: `${GH}px`,
+            left: `${cx - GW/2}px`,
+            top: `${cy - GH/2}px`,
+            transform: 'rotate(0deg)'
+          });
+        }
       }
 
       requestAnimationFrame(updateOverlays);
