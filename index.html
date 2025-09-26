@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>CAR Try-On</title>
+  <title>ChechIT – AR Try-On</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { 
@@ -198,7 +198,7 @@
         if (!isDragging) return;
         const deltaX = e.clientX - startX;
         rotation += deltaX * 0.5;
-        previewImg.style.transform = rotateY(${rotation}deg);
+        previewImg.style.transform = `rotateY(${rotation}deg)`;
         startX = e.clientX;
       });
       
@@ -244,10 +244,10 @@
           
           // Mark active
           btn.classList.add('active');
-          btn.innerHTML = <span class="emoji">✅</span>Active ${overlayType};
+          btn.innerHTML = `<span class="emoji">✅</span>Active ${overlayType}`;
           activeOverlay = overlayType;
           
-          statusBar.textContent = ${overlayType} loaded;
+          statusBar.textContent = `${overlayType} loaded`;
         };
         reader.readAsDataURL(file);
       });
@@ -267,7 +267,7 @@
     // MediaPipe Pose
     let latestPose = null;
     const pose = new Pose({
-      locateFile: f => https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}
+      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}`
     });
     
     pose.setOptions({
@@ -322,11 +322,11 @@
           const angle = Math.atan2(rightY - leftY, rightX - leftX) * 180 / Math.PI;
           
           // Position shirt AT shoulder level, not below
-          shirtOverlay.style.left = ${centerX - shirtWidth/2}px;
-          shirtOverlay.style.top = ${centerY - shirtHeight/2}px; // CENTER at shoulder level
-          shirtOverlay.style.width = ${shirtWidth}px;
-          shirtOverlay.style.height = ${shirtHeight}px;
-          shirtOverlay.style.transform = rotate(${angle}deg);
+          shirtOverlay.style.left = `${centerX - shirtWidth/2}px`;
+          shirtOverlay.style.top = `${centerY - shirtHeight/2}px`; // CENTER at shoulder level
+          shirtOverlay.style.width = `${shirtWidth}px`;
+          shirtOverlay.style.height = `${shirtHeight}px`;
+          shirtOverlay.style.transform = `rotate(${angle}deg)`;
           
           // Debug
           if (frameCount % 30 === 0) {
@@ -346,10 +346,10 @@
           const y = rw.y * h;
           const S = w * 0.12;
           
-          watchOverlay.style.left = ${x - S/2}px;
-          watchOverlay.style.top = ${y - S/2}px;
-          watchOverlay.style.width = ${S}px;
-          watchOverlay.style.height = ${S}px;
+          watchOverlay.style.left = `${x - S/2}px`;
+          watchOverlay.style.top = `${y - S/2}px`;
+          watchOverlay.style.width = `${S}px`;
+          watchOverlay.style.height = `${S}px`;
           watchOverlay.style.transform = 'rotate(0deg)';
         }
       } 
@@ -367,10 +367,10 @@
           const GW = D * 2.5;
           const GH = GW * (gogglesOverlay.naturalHeight / gogglesOverlay.naturalWidth);
           
-          gogglesOverlay.style.left = ${cx - GW/2}px;
-          gogglesOverlay.style.top = ${cy - GH/2}px;
-          gogglesOverlay.style.width = ${GW}px;
-          gogglesOverlay.style.height = ${GH}px;
+          gogglesOverlay.style.left = `${cx - GW/2}px`;
+          gogglesOverlay.style.top = `${cy - GH/2}px`;
+          gogglesOverlay.style.width = `${GW}px`;
+          gogglesOverlay.style.height = `${GH}px`;
           gogglesOverlay.style.transform = 'rotate(0deg)';
         }
       }
