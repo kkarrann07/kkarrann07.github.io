@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ChechIT – Premium AR Try-On Experience</title>
+  <title>Ch-On Experience</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { 
@@ -290,6 +290,47 @@
       box-shadow: 0 10px 30px rgba(255,255,255,0.2);
     }
     
+    .error-message {
+      background: rgba(244, 67, 54, 0.9);
+      color: white;
+      padding: 1rem;
+      border-radius: 10px;
+      margin: 1rem 0;
+      text-align: center;
+      display: none;
+    }
+    
+    .controls-panel {
+      position: absolute;
+      bottom: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 100;
+    }
+    
+    .control-btn {
+      background: rgba(255,255,255,0.9);
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+    
+    .control-btn:hover {
+      background: white;
+      transform: scale(1.1);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    }
+    
     @media (max-width: 1024px) {
       .upload-section { 
         grid-template-columns: 1fr;
@@ -330,6 +371,8 @@
   <section>
     <h2><span class="emoji">🎨</span>Upload Your Items</h2>
     <p>Upload high-quality images for the most realistic virtual try-on experience.</p>
+    
+    <div class="error-message" id="errorMessage"></div>
     
     <div class="upload-section">
       <div class="upload-controls">
@@ -405,14 +448,22 @@
       <img id="earringsOverlay" class="overlay" style="display:none" />
       <img id="necklaceOverlay" class="overlay" style="display:none" />
       <img id="ringOverlay" class="overlay" style="display:none" />
+      
+      <div class="controls-panel">
+        <button class="control-btn" id="resetBtn" title="Reset All">🔄</button>
+        <button class="control-btn" id="screenshotBtn" title="Screenshot">📸</button>
+      </div>
+      
       <div class="status-bar" id="statusBar">🚀 Initializing AR System...</div>
     </div>
   </section>
 
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
+  <!-- Use alternative CDN for better reliability -->
+  <script src="https://unpkg.com/@mediapipe/pose@0.5.1675469404/pose.js"></script>
+  <script src="https://unpkg.com/@mediapipe/camera_utils@0.3.1675479234/camera_utils.js"></script>
+  
   <script>
-    console.log('🚀 Starting AR Try-On App...');
+    console.log('🚀 Starting Resilient AR Try-On App...');
 
     // Get elements
     const video = document.getElementById('video');
@@ -420,6 +471,7 @@
     const previewImg = document.getElementById('previewImg');
     const placeholder = document.getElementById('placeholder');
     const rotator = document.getElementById('rotator');
+    const errorMessage = document.getElementById('errorMessage');
 
     // Get all overlay elements
     const shirtOverlay = document.getElementById('shirtOverlay');
@@ -434,8 +486,20 @@
     let rotation = 0;
     let isDragging = false;
     let startX = 0;
+    let poseDetectionActive = false;
+    let retryCount = 0;
+    const maxRetries = 3;
 
     console.log('✅ Elements loaded');
+
+    // Error handling function
+    function showError(message) {
+      errorMessage.textContent = message;
+      errorMessage.style.display = 'block';
+      setTimeout(() => {
+        errorMessage.style.display = 'none';
+      }, 5000);
+    }
 
     // 3D Rotator functionality
     rotator.addEventListener('mousedown', (e) => {
@@ -480,6 +544,12 @@
       });
       
       activeOverlay = null;
+      
+      // Reset preview
+      previewImg.style.display = 'none';
+      placeholder.style.display = 'block';
+      rotation = 0;
+      previewImg.style.transform = 'rotateY(0deg)';
     }
 
     // Upload handler function
@@ -493,7 +563,12 @@
         if (!file) return;
         
         if (!file.type.startsWith('image/')) {
-          alert('Please select an image file');
+          showError('Please select an image file');
+          return;
+        }
+        
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+          showError('File size must be less than 5MB');
           return;
         }
         
@@ -540,7 +615,7 @@
           console.error(`❌ Error reading file for ${overlayName}`);
           buttonElement.classList.remove('loading');
           buttonElement.innerHTML = '<span class="emoji">❌</span>Error';
-          alert('Error reading file. Please try again.');
+          showError('Error reading file. Please try again.');
         };
         
         reader.readAsDataURL(file);
@@ -592,71 +667,148 @@
       'Ring'
     );
 
+    // Control buttons
+    document.getElementById('resetBtn').addEventListener('click', resetAll);
+    document.getElementById('screenshotBtn').addEventListener('click', () => {
+      // Screenshot functionality
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, -canvas.width, 0);
+      ctx.restore();
+      
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ar-tryon-${Date.now()}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+    });
+
     console.log('✅ Upload handlers ready');
 
-    // Camera setup
-    console.log('📹 Starting camera...');
-    
-    navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
-      .then(stream => {
+    // Camera setup with better error handling
+    async function setupCamera() {
+      console.log('📹 Starting camera...');
+      
+      try {
+        const constraints = {
+          video: { 
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: 'user'
+          }
+        };
+        
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         console.log('✅ Camera stream obtained');
         video.srcObject = stream;
         statusBar.innerHTML = '📹 Camera ready - Upload an item to begin!';
-      })
-      .catch(err => {
+        return true;
+      } catch (err) {
         console.error('❌ Camera error:', err);
         statusBar.innerHTML = '❌ Camera access denied';
-        alert('Please allow camera access to use AR features');
-      });
+        showError('Please allow camera access to use AR features');
+        return false;
+      }
+    }
 
-    // MediaPipe Pose setup
-    console.log('🤖 Initializing pose detection...');
-    
+    // Fallback pose estimation using simple body tracking
     let latestPose = null;
     
-    const pose = new Pose({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
-    });
-    
-    pose.setOptions({
-      modelComplexity: 1,
-      smoothLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
-    });
-    
-    pose.onResults((results) => {
-      latestPose = results.poseLandmarks;
-    });
+    async function initializePoseDetection() {
+      console.log('🤖 Initializing pose detection...');
+      statusBar.innerHTML = '⚡ Loading pose detection...';
+      
+      try {
+        // Try to initialize MediaPipe with better error handling
+        const pose = new Pose({
+          locateFile: (file) => {
+            console.log('📥 Loading MediaPipe file:', file);
+            return `https://unpkg.com/@mediapipe/pose@0.5.1675469404/${file}`;
+          }
+        });
+        
+        pose.setOptions({
+          modelComplexity: 0, // Use simpler model for better performance
+          smoothLandmarks: true,
+          minDetectionConfidence: 0.6,
+          minTrackingConfidence: 0.6
+        });
+        
+        pose.onResults((results) => {
+          latestPose = results.poseLandmarks;
+          if (results.poseLandmarks && results.poseLandmarks.length > 0) {
+            poseDetectionActive = true;
+            if (statusBar.innerHTML.includes('Loading')) {
+              statusBar.innerHTML = '🎯 AR System ready - Upload an item!';
+            }
+          }
+        });
 
-    new Camera(video, {
-      onFrame: async () => {
-        try {
-          await pose.send({ image: video });
-        } catch (error) {
-          console.warn('Pose detection frame skipped:', error.message);
-        }
-      },
-      width: 640,
-      height: 480
-    }).start().then(() => {
-      console.log('✅ Pose detection started');
-      statusBar.innerHTML = '🎯 AR System ready - Upload an item!';
-    });
+        // Setup camera with retry mechanism
+        const camera = new Camera(video, {
+          onFrame: async () => {
+            try {
+              if (poseDetectionActive) {
+                await pose.send({ image: video });
+              }
+            } catch (error) {
+              if (retryCount < maxRetries) {
+                retryCount++;
+                console.warn(`⚠️ Pose detection retry ${retryCount}/${maxRetries}:`, error.message);
+              } else {
+                console.error('❌ Pose detection failed after retries');
+                poseDetectionActive = false;
+                statusBar.innerHTML = '⚠️ Pose detection unavailable - Basic mode only';
+              }
+            }
+          },
+          width: 640,
+          height: 480
+        });
+        
+        await camera.start();
+        console.log('✅ Pose detection system started');
+        
+      } catch (error) {
+        console.error('❌ MediaPipe initialization failed:', error);
+        poseDetectionActive = false;
+        statusBar.innerHTML = '⚠️ AR mode unavailable - Upload works normally';
+        showError('AR pose detection failed to load. Upload functionality still works!');
+      }
+    }
 
-    // COMPLETELY FIXED POSITIONING LOGIC
+    // Optimized overlay positioning with fallback
     function updateOverlays() {
-      if (!latestPose || !activeOverlay) {
+      if (!activeOverlay) {
         requestAnimationFrame(updateOverlays);
         return;
       }
 
+      // If pose detection is working, use it
+      if (poseDetectionActive && latestPose) {
+        updateOverlaysWithPose();
+      } else {
+        // Fallback: Simple center positioning
+        updateOverlaysSimple();
+      }
+
+      requestAnimationFrame(updateOverlays);
+    }
+    
+    function updateOverlaysWithPose() {
       const w = video.clientWidth;
       const h = video.clientHeight;
 
       try {
         if (activeOverlay === 'Shirt') {
-          // SHIRT: CRITICAL FIX - Position shirt much higher, exactly at shoulder line
           const ls = latestPose[11]; // left shoulder
           const rs = latestPose[12]; // right shoulder
           
@@ -670,15 +822,11 @@
             const shoulderCenterY = (leftShoulderY + rightShoulderY) / 2;
             const shoulderWidth = Math.abs(rightShoulderX - leftShoulderX);
             
-            // Shirt dimensions - make it more proportional
-            const shirtWidth = shoulderWidth * 2.4; // Slightly wider
-            const shirtHeight = shoulderWidth * 2.8; // Taller for better coverage
-            
-            // CRITICAL: Position shirt so its collar/top area is AT the shoulder line
+            const shirtWidth = shoulderWidth * 2.4;
+            const shirtHeight = shoulderWidth * 2.8;
             const shirtX = shoulderCenterX - shirtWidth / 2;
-            const shirtY = shoulderCenterY - shirtHeight * 0.05; // Very minimal offset - almost at shoulder line
+            const shirtY = shoulderCenterY - shirtHeight * 0.05; // Minimal offset
             
-            // Rotation based on shoulder angle
             const angle = Math.atan2(rightShoulderY - leftShoulderY, rightShoulderX - leftShoulderX) * 180 / Math.PI;
             
             shirtOverlay.style.left = `${shirtX}px`;
@@ -686,12 +834,10 @@
             shirtOverlay.style.width = `${shirtWidth}px`;
             shirtOverlay.style.height = `${shirtHeight}px`;
             shirtOverlay.style.transform = `rotate(${angle}deg)`;
-            
-            console.log(`👕 FIXED Shirt: Collar at shoulders - ShirtY=${shirtY.toFixed(0)}, ShoulderY=${shoulderCenterY.toFixed(0)}, Offset=${((shirtY - shoulderCenterY) / shirtHeight * 100).toFixed(1)}%`);
           }
         } 
         else if (activeOverlay === 'Watch') {
-          const rw = latestPose[16]; // right wrist
+          const rw = latestPose[16];
           if (rw && rw.visibility > 0.5) {
             const x = (1 - rw.x) * w;
             const y = rw.y * h;
@@ -728,15 +874,13 @@
           }
         }
         else if (activeOverlay === 'Earrings') {
-          // EARRINGS: CRITICAL FIX - Use ear landmarks directly if available, otherwise calculate properly
-          const leftEar = latestPose[7];   // left ear landmark (if available)
-          const rightEar = latestPose[8];  // right ear landmark (if available)
-          const le = latestPose[2];        // left eye (fallback)
-          const re = latestPose[5];        // right eye (fallback)
+          // Try ear landmarks first, fallback to eye-based
+          const leftEar = latestPose[7];
+          const rightEar = latestPose[8];
+          const le = latestPose[2];
+          const re = latestPose[5];
           
-          // Try ear landmarks first, then fall back to eye-based calculation
           if (leftEar && rightEar && leftEar.visibility > 0.3 && rightEar.visibility > 0.3) {
-            // Use direct ear landmarks - most accurate
             const leftEarX = (1 - leftEar.x) * w;
             const leftEarY = leftEar.y * h;
             const rightEarX = (1 - rightEar.x) * w;
@@ -746,7 +890,7 @@
             const earCenterY = (leftEarY + rightEarY) / 2;
             const earDistance = Math.abs(rightEarX - leftEarX);
             
-            const earringWidth = earDistance + w * 0.08; // Add padding for earring size
+            const earringWidth = earDistance + w * 0.08;
             const earringHeight = w * 0.06;
             
             earringsOverlay.style.left = `${earCenterX - earringWidth/2}px`;
@@ -754,11 +898,8 @@
             earringsOverlay.style.width = `${earringWidth}px`;
             earringsOverlay.style.height = `${earringHeight}px`;
             earringsOverlay.style.transform = 'rotate(0deg)';
-            
-            console.log(`💎 Earrings: Using direct ear landmarks - Left(${leftEarX.toFixed(0)}, ${leftEarY.toFixed(0)}), Right(${rightEarX.toFixed(0)}, ${rightEarY.toFixed(0)})`);
           }
           else if (le && re && le.visibility > 0.3 && re.visibility > 0.3) {
-            // Fallback to eye-based calculation with better positioning
             const leftEyeX = (1 - le.x) * w;
             const leftEyeY = le.y * h;
             const rightEyeX = (1 - re.x) * w;
@@ -768,33 +909,23 @@
             const eyeCenterX = (leftEyeX + rightEyeX) / 2;
             const eyeCenterY = (leftEyeY + rightEyeY) / 2;
             
-            // Better ear position estimation
-            const earHorizontalOffset = eyeDistance * 1.4; // Further from center
-            const earVerticalOffset = eyeDistance * 0.1; // Slightly below, not much
+            const earHorizontalOffset = eyeDistance * 1.4;
+            const earVerticalOffset = eyeDistance * 0.1;
             
-            const leftEarX = eyeCenterX - earHorizontalOffset;
-            const leftEarY = eyeCenterY + earVerticalOffset;
-            const rightEarX = eyeCenterX + earHorizontalOffset;
-            const rightEarY = eyeCenterY + earVerticalOffset;
-            
-            const earringWidth = Math.abs(rightEarX - leftEarX) + eyeDistance * 0.3;
+            const earringWidth = earHorizontalOffset * 2 + eyeDistance * 0.3;
             const earringHeight = eyeDistance * 0.5;
-            const earringCenterX = (leftEarX + rightEarX) / 2;
-            const earringCenterY = (leftEarY + rightEarY) / 2;
             
-            earringsOverlay.style.left = `${earringCenterX - earringWidth/2}px`;
-            earringsOverlay.style.top = `${earringCenterY - earringHeight/2}px`;
+            earringsOverlay.style.left = `${eyeCenterX - earringWidth/2}px`;
+            earringsOverlay.style.top = `${eyeCenterY + earVerticalOffset - earringHeight/2}px`;
             earringsOverlay.style.width = `${earringWidth}px`;
             earringsOverlay.style.height = `${earringHeight}px`;
             earringsOverlay.style.transform = 'rotate(0deg)';
-            
-            console.log(`💎 Earrings: Using eye-based calculation - Better positioned at side of head`);
           }
         }
         else if (activeOverlay === 'Necklace') {
-          const ls = latestPose[11]; // left shoulder
-          const rs = latestPose[12]; // right shoulder
-          const nose = latestPose[0]; // nose for neck reference
+          const ls = latestPose[11];
+          const rs = latestPose[12];
+          const nose = latestPose[0];
           
           if (ls && rs && nose && ls.visibility > 0.5 && rs.visibility > 0.5 && nose.visibility > 0.3) {
             const leftShoulderX = (1 - ls.x) * w;
@@ -820,7 +951,7 @@
           }
         }
         else if (activeOverlay === 'Ring') {
-          const rw = latestPose[16]; // right wrist
+          const rw = latestPose[16];
           if (rw && rw.visibility > 0.4) {
             const x = (1 - rw.x) * w;
             const y = rw.y * h;
@@ -837,16 +968,39 @@
           }
         }
       } catch (error) {
-        console.warn('Overlay update error:', error.message);
+        console.warn('Overlay positioning error:', error.message);
       }
-
-      requestAnimationFrame(updateOverlays);
+    }
+    
+    function updateOverlaysSimple() {
+      // Simple fallback positioning in center of video
+      const w = video.clientWidth;
+      const h = video.clientHeight;
+      const overlay = document.getElementById(activeOverlay.toLowerCase() + 'Overlay');
+      
+      if (overlay) {
+        const size = Math.min(w, h) * 0.3;
+        overlay.style.left = `${w/2 - size/2}px`;
+        overlay.style.top = `${h/2 - size/2}px`;
+        overlay.style.width = `${size}px`;
+        overlay.style.height = `${size}px`;
+        overlay.style.transform = 'rotate(0deg)';
+      }
     }
 
-    // Start the overlay update loop
-    updateOverlays();
+    // Initialize everything
+    async function initialize() {
+      const cameraOk = await setupCamera();
+      if (cameraOk) {
+        await initializePoseDetection();
+      }
+      updateOverlays();
+    }
 
-    console.log('🎉 AR Try-On App fully initialized!');
+    // Start the app
+    initialize();
+
+    console.log('🎉 Resilient AR Try-On App initialized!');
   </script>
 </body>
 </html>
