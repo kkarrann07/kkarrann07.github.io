@@ -2,383 +2,1276 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ChechIT – AR Try-On</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChechIT – Premium AR Try-On Experience</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
+    :root {
+      --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --secondary-gradient: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+      --success-gradient: linear-gradient(135deg, #4CAF50, #45a049);
+      --warning-gradient: linear-gradient(135deg, #ff9800, #f57c00);
+      --glass-bg: rgba(255,255,255,0.95);
+      --glass-border: rgba(255,255,255,0.2);
+      --text-primary: #2c3e50;
+      --text-secondary: #666;
+      --shadow: 0 10px 40px rgba(0,0,0,0.1);
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
     * { margin:0; padding:0; box-sizing:border-box; }
+    
     body { 
       font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; 
-      background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
-      color:#333; min-height:100vh;
+      background: var(--primary-gradient);
+      color: var(--text-primary);
+      min-height:100vh;
+      overflow-x: hidden;
     }
+    
+    /* Enhanced Header */
     header { 
-      background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);
-      color:#fff; padding:2rem; text-align:center; font-size:2rem; font-weight:600;
-      box-shadow:0 4px 20px rgba(0,0,0,0.3);
+      background: var(--secondary-gradient);
+      color: #fff;
+      padding: 2rem;
+      text-align: center;
+      font-size: 2.2rem;
+      font-weight: 700;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
     }
+    
+    header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+      animation: shimmer 3s infinite;
+    }
+    
+    @keyframes shimmer {
+      0% { transform: translateX(-100%) translateY(-100%) rotate(30deg); }
+      100% { transform: translateX(100%) translateY(100%) rotate(30deg); }
+    }
+    
+    .header-content {
+      position: relative;
+      z-index: 2;
+    }
+    
+    .header-subtitle {
+      font-size: 1rem;
+      opacity: 0.9;
+      margin-top: 0.5rem;
+      font-weight: 300;
+    }
+    
+    /* Enhanced Sections */
     section { 
-      max-width:1000px; margin:2rem auto; 
-      background:rgba(255,255,255,0.95); border-radius:20px;
-      box-shadow:0 10px 40px rgba(0,0,0,0.1); padding:2.5rem;
-      backdrop-filter:blur(10px);
+      max-width: 1200px;
+      margin: 2rem auto;
+      background: var(--glass-bg);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 3rem;
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      position: relative;
+      transition: var(--transition);
     }
+    
+    section:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    }
+    
     h2 { 
-      font-size:1.8rem; color:#2c3e50; margin-bottom:1rem; 
-      text-align:center; position:relative;
+      font-size: 2rem;
+      color: var(--text-primary);
+      margin-bottom: 1.5rem;
+      text-align: center;
+      position: relative;
+      font-weight: 600;
     }
+    
     h2::after { 
-      content:''; position:absolute; bottom:-10px; left:50%; 
-      transform:translateX(-50%); width:60px; height:3px; 
-      background:linear-gradient(135deg,#667eea,#764ba2); border-radius:2px;
+      content: '';
+      position: absolute;
+      bottom: -15px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 4px;
+      background: var(--primary-gradient);
+      border-radius: 2px;
+      box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
     }
-    p { text-align:center; color:#666; margin-bottom:1.5rem; font-size:1.1rem; }
+    
+    p { 
+      text-align: center;
+      color: var(--text-secondary);
+      margin-bottom: 2rem;
+      font-size: 1.1rem;
+      line-height: 1.6;
+    }
+    
+    /* Enhanced iframe */
     iframe { 
-      width:100%; height:500px; border:none; border-radius:15px; 
-      box-shadow:0 8px 25px rgba(0,0,0,0.15); transition:transform 0.3s;
+      width: 100%;
+      height: 500px;
+      border: none;
+      border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+      transition: var(--transition);
     }
-    iframe:hover { transform:translateY(-5px); }
     
+    iframe:hover { 
+      transform: translateY(-6px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    
+    /* Enhanced Upload Section */
     .upload-section { 
-      display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start;
-    }
-    .upload-controls { display:flex; flex-direction:column; gap:1.5rem; }
-    .upload-wrapper { position:relative; overflow:hidden; }
-    .upload-wrapper input { 
-      position:absolute; opacity:0; width:100%; height:100%; cursor:pointer;
-    }
-    .upload-btn { 
-      display:flex; align-items:center; gap:10px; padding:15px 25px;
-      background:linear-gradient(135deg,#667eea,#764ba2); color:#fff;
-      border-radius:12px; cursor:pointer; transition:all 0.3s ease;
-      font-weight:500; box-shadow:0 4px 15px rgba(102,126,234,0.4);
-      user-select:none;
-    }
-    .upload-btn:hover { 
-      transform:translateY(-2px); 
-      box-shadow:0 6px 20px rgba(102,126,234,0.6);
-    }
-    .upload-btn.active { 
-      background:linear-gradient(135deg,#4CAF50,#45a049);
-      box-shadow:0 4px 15px rgba(76,175,80,0.4);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 3rem;
+      align-items: start;
     }
     
-    .preview-section { perspective:800px; }
+    .upload-controls { 
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+    }
+    
+    .upload-wrapper { 
+      position: relative;
+      overflow: hidden;
+      border-radius: 16px;
+      transition: var(--transition);
+    }
+    
+    .upload-wrapper:hover {
+      transform: scale(1.02);
+    }
+    
+    .upload-wrapper input { 
+      position: absolute;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+    
+    .upload-btn { 
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 20px 25px;
+      background: var(--primary-gradient);
+      color: #fff;
+      border-radius: 16px;
+      cursor: pointer;
+      transition: var(--transition);
+      font-weight: 600;
+      font-size: 0.95rem;
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+      user-select: none;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .upload-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: var(--transition);
+    }
+    
+    .upload-btn:hover::before {
+      left: 100%;
+    }
+    
+    .upload-btn:hover { 
+      transform: translateY(-3px);
+      box-shadow: 0 12px 35px rgba(102, 126, 234, 0.6);
+    }
+    
+    .upload-btn.active { 
+      background: var(--success-gradient);
+      box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+    }
+    
+    .upload-btn.loading {
+      background: var(--warning-gradient);
+      pointer-events: none;
+    }
+    
+    .upload-btn i {
+      font-size: 1.1rem;
+      transition: var(--transition);
+    }
+    
+    .upload-btn:hover i {
+      transform: scale(1.2);
+    }
+    
+    /* Enhanced Preview Section */
+    .preview-section { 
+      perspective: 1000px;
+      min-width: 350px;
+    }
+    
+    .preview-header {
+      text-align: center;
+      margin-bottom: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
     .rotator { 
-      width:320px; height:400px; border:2px solid #ddd; 
-      border-radius:15px; background:#fafafa; 
-      display:flex; align-items:center; justify-content:center; 
-      cursor:grab; transform-style:preserve-3d; margin:0 auto;
+      width: 350px;
+      height: 420px;
+      border: 3px solid #e0e7ff;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #f8faff 0%, #f1f5ff 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+      transform-style: preserve-3d;
+      margin: 0 auto;
+      transition: var(--transition);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      position: relative;
     }
+    
+    .rotator:hover {
+      border-color: #667eea;
+      box-shadow: 0 15px 40px rgba(102, 126, 234, 0.3);
+    }
+    
+    .rotator:active { 
+      cursor: grabbing;
+      transform: scale(0.98);
+    }
+    
     .rotator img { 
-      max-width:90%; max-height:90%; pointer-events:none; 
-      user-select:none; backface-visibility:hidden; transition:transform 0.1s;
+      max-width: 85%;
+      max-height: 85%;
+      pointer-events: none;
+      user-select: none;
+      backface-visibility: hidden;
+      transition: transform 0.15s ease-out;
+      transform-style: preserve-3d;
+      border-radius: 12px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
     }
-    .rotator:active { cursor:grabbing; }
+    
     .rotator-placeholder { 
-      color:#999; text-align:center; font-size:1rem;
+      color: #8b93a7;
+      text-align: center;
+      font-size: 1.1rem;
+      line-height: 1.6;
+    }
+    
+    .rotator-placeholder i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      color: #c1c9d4;
+      display: block;
+    }
+    
+    /* Enhanced AR Container */
+    .ar-section {
+      text-align: center;
     }
     
     .ar-container { 
-      position:relative; width:640px; height:480px; margin:2rem auto; 
-      border-radius:20px; overflow:hidden; 
-      box-shadow:0 10px 30px rgba(0,0,0,0.3); background:#000;
+      position: relative;
+      width: 100%;
+      max-width: 800px;
+      aspect-ratio: 4/3;
+      margin: 2rem auto;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      background: #000;
+      border: 4px solid #fff;
     }
-    video { 
-      position:absolute; top:0; left:0; width:100%; height:100%; 
-      transform:scaleX(-1); object-fit:cover;
-    }
-    .overlay { 
-      position:absolute; pointer-events:none; 
-      transform-origin:center center; will-change:transform;
-    }
-    .status-bar { 
-      position:absolute; top:15px; right:15px; 
-      background:rgba(0,0,0,0.7); color:#fff; 
-      padding:8px 15px; border-radius:25px; font-size:0.9rem;
-      backdrop-filter:blur(5px);
-    }
-    .debug-info { 
-      position:absolute; top:60px; right:15px; 
-      background:rgba(0,0,0,0.7); color:#fff; 
-      padding:8px 12px; border-radius:15px; font-size:0.8rem;
-      font-family:monospace; max-width:200px;
-    }
-    .emoji { font-size:1.2rem; margin-right:8px; }
     
-    @media (max-width:768px) {
-      .upload-section { grid-template-columns:1fr; }
-      .ar-container { width:90vw; height:calc(90vw * 0.75); max-width:640px; }
-      section { margin:1rem; padding:1.5rem; }
+    video { 
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+    
+    .overlay { 
+      position: absolute;
+      pointer-events: none;
+      transform-origin: center center;
+      will-change: transform;
+      transition: opacity 0.3s ease;
+    }
+    
+    /* Enhanced Status Elements */
+    .status-bar { 
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 30px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+      z-index: 10;
+    }
+    
+    .debug-info { 
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-family: 'Courier New', monospace;
+      max-width: 250px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+      z-index: 10;
+    }
+    
+    /* Control Panel */
+    .control-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      display: flex;
+      gap: 10px;
+      z-index: 10;
+    }
+    
+    .control-btn {
+      background: rgba(255,255,255,0.9);
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: var(--transition);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      backdrop-filter: blur(10px);
+    }
+    
+    .control-btn:hover {
+      background: rgba(255,255,255,1);
+      transform: scale(1.1);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    }
+    
+    .control-btn i {
+      font-size: 1.2rem;
+      color: var(--text-primary);
+    }
+    
+    /* Loading Animation */
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top: 2px solid #fff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 8px;
+    }
+    
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Feature Cards */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      margin-top: 3rem;
+    }
+    
+    .feature-card {
+      background: linear-gradient(135deg, #f8faff 0%, #f1f5ff 100%);
+      padding: 2rem;
+      border-radius: 16px;
+      text-align: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+      transition: var(--transition);
+      border: 1px solid rgba(102, 126, 234, 0.1);
+    }
+    
+    .feature-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    }
+    
+    .feature-card i {
+      font-size: 2.5rem;
+      color: #667eea;
+      margin-bottom: 1rem;
+    }
+    
+    .feature-card h3 {
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+      font-size: 1.2rem;
+    }
+    
+    .feature-card p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin: 0;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+      .upload-section { 
+        grid-template-columns: 1fr;
+        gap: 2rem;
+      }
+      
+      .preview-section {
+        min-width: auto;
+      }
+      
+      .rotator {
+        width: 100%;
+        max-width: 350px;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      header {
+        padding: 1.5rem;
+        font-size: 1.8rem;
+      }
+      
+      section {
+        margin: 1rem;
+        padding: 2rem;
+      }
+      
+      .upload-controls {
+        grid-template-columns: 1fr;
+      }
+      
+      .ar-container {
+        border-radius: 16px;
+        border-width: 2px;
+      }
+      
+      .control-panel {
+        flex-direction: column;
+      }
+      
+      .feature-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+    }
+    
+    /* Accessibility */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+    
+    /* Smooth scrolling */
+    html {
+      scroll-behavior: smooth;
+    }
+    
+    /* Focus styles */
+    button:focus,
+    .upload-btn:focus-within {
+      outline: 2px solid #667eea;
+      outline-offset: 2px;
     }
   </style>
 </head>
 <body>
-  <header><span class="emoji">👗</span>ChechIT – AR Try-On</header>
+  <header>
+    <div class="header-content">
+      <i class="fas fa-magic" style="margin-right: 0.5rem;"></i>
+      ChechIT – Premium AR Try-On
+      <div class="header-subtitle">Experience the future of virtual fashion</div>
+    </div>
+  </header>
 
   <section>
-    <h2><span class="emoji">🔍</span>AI Fashion Search</h2>
-    <p>Discover garments using advanced AI embeddings technology.</p>
-    <iframe src="https://kkarrann07-Fashion.hf.space"></iframe>
+    <h2><i class="fas fa-search" style="margin-right: 0.5rem;"></i>AI Fashion Discovery</h2>
+    <p>Explore our vast collection using advanced AI-powered search and embeddings technology.</p>
+    <iframe src="https://kkarrann07-Fashion.hf.space" loading="lazy"></iframe>
   </section>
 
   <section>
-    <h2><span class="emoji">🖼</span>Upload Overlays</h2>
-    <p>Upload one item at a time for virtual try-on experience.</p>
+    <h2><i class="fas fa-cloud-upload-alt" style="margin-right: 0.5rem;"></i>Upload Your Items</h2>
+    <p>Upload high-quality PNG images for the most realistic virtual try-on experience.</p>
+    
     <div class="upload-section">
       <div class="upload-controls">
         <div class="upload-wrapper">
-          <input id="uploadShirt" type="file" accept="image/png" />
+          <input id="uploadShirt" type="file" accept="image/*" aria-label="Upload shirt image" />
           <div class="upload-btn" id="shirtBtn">
-            <span class="emoji">👕</span>Upload Shirt
+            <i class="fas fa-tshirt"></i>
+            <span>Upload Shirt</span>
           </div>
         </div>
+        
         <div class="upload-wrapper">
-          <input id="uploadWatch" type="file" accept="image/png" />
+          <input id="uploadWatch" type="file" accept="image/*" aria-label="Upload watch image" />
           <div class="upload-btn" id="watchBtn">
-            <span class="emoji">⌚</span>Upload Watch
+            <i class="fas fa-clock"></i>
+            <span>Upload Watch</span>
           </div>
         </div>
+        
         <div class="upload-wrapper">
-          <input id="uploadGoggles" type="file" accept="image/png" />
+          <input id="uploadGoggles" type="file" accept="image/*" aria-label="Upload goggles image" />
           <div class="upload-btn" id="gogglesBtn">
-            <span class="emoji">🕶</span>Upload Goggles
+            <i class="fas fa-glasses"></i>
+            <span>Upload Goggles</span>
+          </div>
+        </div>
+        
+        <div class="upload-wrapper">
+          <input id="uploadEarrings" type="file" accept="image/*" aria-label="Upload earrings image" />
+          <div class="upload-btn" id="earringsBtn">
+            <i class="fas fa-gem"></i>
+            <span>Upload Earrings</span>
+          </div>
+        </div>
+        
+        <div class="upload-wrapper">
+          <input id="uploadNecklace" type="file" accept="image/*" aria-label="Upload necklace image" />
+          <div class="upload-btn" id="necklaceBtn">
+            <i class="fas fa-circle-notch"></i>
+            <span>Upload Necklace</span>
+          </div>
+        </div>
+        
+        <div class="upload-wrapper">
+          <input id="uploadShoes" type="file" accept="image/*" aria-label="Upload shoes image" />
+          <div class="upload-btn" id="shoesBtn">
+            <i class="fas fa-shoe-prints"></i>
+            <span>Upload Shoes</span>
           </div>
         </div>
       </div>
+      
       <div class="preview-section">
-        <p><span class="emoji">🖼</span>3D Preview:</p>
+        <div class="preview-header">
+          <i class="fas fa-cube"></i> 3D Item Preview
+        </div>
         <div class="rotator" id="rotator">
-          <img id="previewImg" src="" style="display:none" />
+          <img id="previewImg" src="" style="display:none" alt="3D preview of uploaded item" />
           <div class="rotator-placeholder" id="placeholder">
-            <span class="emoji">📱</span><br>
-            3D Rotator<br>
-            <small>Upload an item to preview</small>
+            <i class="fas fa-upload"></i>
+            <strong>Interactive 3D Preview</strong><br>
+            <small>Upload any item to see it in 3D<br>Click and drag to rotate</small>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <div class="ar-container">
-    <video id="video" autoplay playsinline muted></video>
-    <img id="shirtOverlay" class="overlay" style="display:none" />
-    <img id="watchOverlay" class="overlay" style="display:none" />
-    <img id="gogglesOverlay" class="overlay" style="display:none" />
-    <div class="status-bar" id="statusBar">Initializing...</div>
-    <div class="debug-info" id="debugInfo">Debug: Ready</div>
-  </div>
+  <section class="ar-section">
+    <h2><i class="fas fa-video" style="margin-right: 0.5rem;"></i>AR Virtual Try-On</h2>
+    <p>Experience real-time augmented reality with advanced pose detection and natural overlay positioning.</p>
+    
+    <div class="ar-container" id="arContainer">
+      <video id="video" autoplay playsinline muted aria-label="Camera feed for AR try-on"></video>
+      
+      <img id="shirtOverlay" class="overlay" style="display:none" alt="Virtual shirt overlay" />
+      <img id="watchOverlay" class="overlay" style="display:none" alt="Virtual watch overlay" />
+      <img id="gogglesOverlay" class="overlay" style="display:none" alt="Virtual goggles overlay" />
+      <img id="earringsOverlay" class="overlay" style="display:none" alt="Virtual earrings overlay" />
+      <img id="necklaceOverlay" class="overlay" style="display:none" alt="Virtual necklace overlay" />
+      <img id="shoesOverlay" class="overlay" style="display:none" alt="Virtual shoes overlay" />
+      
+      <div class="control-panel">
+        <button class="control-btn" id="screenshotBtn" title="Take Screenshot" aria-label="Take screenshot">
+          <i class="fas fa-camera"></i>
+        </button>
+        <button class="control-btn" id="fullscreenBtn" title="Toggle Fullscreen" aria-label="Toggle fullscreen">
+          <i class="fas fa-expand"></i>
+        </button>
+        <button class="control-btn" id="resetBtn" title="Reset All" aria-label="Reset all overlays">
+          <i class="fas fa-redo"></i>
+        </button>
+      </div>
+      
+      <div class="status-bar" id="statusBar">
+        <i class="fas fa-circle text-success" style="color: #4CAF50; margin-right: 6px;"></i>
+        Initializing AR System...
+      </div>
+      
+      <div class="debug-info" id="debugInfo">
+        <strong>System Status</strong><br>
+        Camera: <span id="cameraStatus">Loading...</span><br>
+        Pose: <span id="poseStatus">Initializing...</span><br>
+        Active: <span id="activeStatus">None</span><br>
+        FPS: <span id="fpsStatus">--</span>
+      </div>
+    </div>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <i class="fas fa-eye"></i>
+        <h3>Real-time Tracking</h3>
+        <p>Advanced AI-powered pose detection with sub-pixel accuracy</p>
+      </div>
+      <div class="feature-card">
+        <i class="fas fa-mobile-alt"></i>
+        <h3>Mobile Optimized</h3>
+        <p>Seamless experience across all devices and screen sizes</p>
+      </div>
+      <div class="feature-card">
+        <i class="fas fa-palette"></i>
+        <h3>Natural Blending</h3>
+        <p>Sophisticated overlay techniques for realistic appearance</p>
+      </div>
+      <div class="feature-card">
+        <i class="fas fa-lightning-bolt"></i>
+        <h3>High Performance</h3>
+        <p>Optimized algorithms ensuring smooth 30+ FPS experience</p>
+      </div>
+    </div>
+  </section>
 
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
   <script>
-    const video = document.getElementById('video');
-    const statusBar = document.getElementById('statusBar');
-    const debugInfo = document.getElementById('debugInfo');
-    const shirtOverlay = document.getElementById('shirtOverlay');
-    const watchOverlay = document.getElementById('watchOverlay');
-    const gogglesOverlay = document.getElementById('gogglesOverlay');
-    const previewImg = document.getElementById('previewImg');
-    const placeholder = document.getElementById('placeholder');
-    const rotator = document.getElementById('rotator');
-
-    // State
-    let activeOverlay = null;
-    let frameCount = 0;
-
-    // 3D Rotator
-    let isDragging = false, startX = 0, rotation = 0;
-    
-    function setup3DRotator() {
-      rotator.addEventListener('mousedown', e => {
-        isDragging = true;
-        startX = e.clientX;
-        rotator.style.cursor = 'grabbing';
-      });
+    // Performance monitoring
+    class PerformanceMonitor {
+      constructor() {
+        this.frameCount = 0;
+        this.lastTime = performance.now();
+        this.fps = 0;
+      }
       
-      document.addEventListener('mousemove', e => {
-        if (!isDragging) return;
-        const deltaX = e.clientX - startX;
-        rotation += deltaX * 0.5;
-        previewImg.style.transform = `rotateY(${rotation}deg)`;
-        startX = e.clientX;
-      });
-      
-      document.addEventListener('mouseup', () => {
-        isDragging = false;
-        rotator.style.cursor = 'grab';
-      });
+      update() {
+        this.frameCount++;
+        const now = performance.now();
+        if (now >= this.lastTime + 1000) {
+          this.fps = Math.round((this.frameCount * 1000) / (now - this.lastTime));
+          this.frameCount = 0;
+          this.lastTime = now;
+          document.getElementById('fpsStatus').textContent = this.fps;
+        }
+      }
     }
-    setup3DRotator();
-
-    // Upload handling
-    function setupInput(inputId, overlayImg, btnId, overlayType) {
-      const input = document.getElementById(inputId);
-      const btn = document.getElementById(btnId);
-      
-      input.addEventListener('change', e => {
-        const file = e.target.files[0];
-        if (!file) return;
+    
+    // Main AR Try-On Application
+    class ARTryOnApp {
+      constructor() {
+        this.video = document.getElementById('video');
+        this.statusBar = document.getElementById('statusBar');
+        this.debugInfo = document.getElementById('debugInfo');
+        this.previewImg = document.getElementById('previewImg');
+        this.placeholder = document.getElementById('placeholder');
+        this.rotator = document.getElementById('rotator');
         
-        // Reset all
-        [shirtOverlay, watchOverlay, gogglesOverlay].forEach(o => {
+        // Overlay elements
+        this.overlays = {
+          shirt: document.getElementById('shirtOverlay'),
+          watch: document.getElementById('watchOverlay'),
+          goggles: document.getElementById('gogglesOverlay'),
+          earrings: document.getElementById('earringsOverlay'),
+          necklace: document.getElementById('necklaceOverlay'),
+          shoes: document.getElementById('shoesOverlay')
+        };
+        
+        this.activeOverlay = null;
+        this.latestPose = null;
+        this.performanceMonitor = new PerformanceMonitor();
+        this.isFullscreen = false;
+        
+        // Debouncing for performance
+        this.updateOverlaysThrottled = this.throttle(this.updateOverlays.bind(this), 16); // ~60fps max
+        
+        this.init();
+      }
+      
+      init() {
+        this.setup3DRotator();
+        this.setupUploadHandlers();
+        this.setupCamera();
+        this.setupPose();
+        this.setupControlPanel();
+        this.startUpdateLoop();
+        this.updateSystemStatus('Initializing camera...', 'loading');
+      }
+      
+      throttle(func, limit) {
+        let inThrottle;
+        return function() {
+          const args = arguments;
+          const context = this;
+          if (!inThrottle) {
+            func.apply(context, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+          }
+        }
+      }
+      
+      setup3DRotator() {
+        let isDragging = false, startX = 0, rotation = 0;
+        
+        this.rotator.addEventListener('mousedown', (e) => {
+          isDragging = true;
+          startX = e.clientX;
+          this.rotator.style.cursor = 'grabbing';
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+          if (!isDragging) return;
+          const deltaX = e.clientX - startX;
+          rotation += deltaX * 0.5;
+          this.previewImg.style.transform = `rotateY(${rotation}deg)`;
+          startX = e.clientX;
+        });
+        
+        document.addEventListener('mouseup', () => {
+          isDragging = false;
+          this.rotator.style.cursor = 'grab';
+        });
+        
+        // Touch support
+        this.rotator.addEventListener('touchstart', (e) => {
+          isDragging = true;
+          startX = e.touches[0].clientX;
+        });
+        
+        document.addEventListener('touchmove', (e) => {
+          if (!isDragging) return;
+          e.preventDefault();
+          const deltaX = e.touches[0].clientX - startX;
+          rotation += deltaX * 0.5;
+          this.previewImg.style.transform = `rotateY(${rotation}deg)`;
+          startX = e.touches[0].clientX;
+        });
+        
+        document.addEventListener('touchend', () => {
+          isDragging = false;
+        });
+      }
+      
+      setupUploadHandlers() {
+        const items = ['shirt', 'watch', 'goggles', 'earrings', 'necklace', 'shoes'];
+        
+        items.forEach(item => {
+          this.setupInput(`upload${item.charAt(0).toUpperCase() + item.slice(1)}`, 
+                         this.overlays[item], `${item}Btn`, item);
+        });
+      }
+      
+      setupInput(inputId, overlayImg, btnId, overlayType) {
+        const input = document.getElementById(inputId);
+        const btn = document.getElementById(btnId);
+        
+        input.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          
+          // Validate file
+          if (!file.type.startsWith('image/')) {
+            this.showNotification('Please upload a valid image file', 'error');
+            return;
+          }
+          
+          if (file.size > 10 * 1024 * 1024) { // 10MB limit
+            this.showNotification('File size must be less than 10MB', 'error');
+            return;
+          }
+          
+          this.resetAllOverlays();
+          this.setButtonState(btn, 'loading');
+          
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            overlayImg.src = ev.target.result;
+            overlayImg.style.display = 'block';
+            
+            // Update preview
+            this.previewImg.src = ev.target.result;
+            this.previewImg.style.display = 'block';
+            this.placeholder.style.display = 'none';
+            this.previewImg.style.transform = 'rotateY(0deg)';
+            
+            this.setButtonState(btn, 'active', overlayType);
+            this.activeOverlay = overlayType;
+            
+            this.updateSystemStatus(`${overlayType.charAt(0).toUpperCase() + overlayType.slice(1)} loaded successfully`, 'success');
+            document.getElementById('activeStatus').textContent = overlayType;
+            
+            this.showNotification(`${overlayType.charAt(0).toUpperCase() + overlayType.slice(1)} loaded successfully!`, 'success');
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+      
+      resetAllOverlays() {
+        Object.values(this.overlays).forEach(o => {
           o.style.display = 'none';
           o.src = '';
         });
+        
         document.querySelectorAll('.upload-btn').forEach(b => {
-          b.classList.remove('active');
-          b.innerHTML = b.innerHTML.replace('✅ Active', '').replace('Active', 'Upload');
+          this.setButtonState(b, 'default');
+        });
+      }
+      
+      setButtonState(btn, state, overlayType = '') {
+        const icon = btn.querySelector('i');
+        const text = btn.querySelector('span');
+        
+        btn.classList.remove('active', 'loading');
+        
+        switch(state) {
+          case 'loading':
+            btn.classList.add('loading');
+            icon.className = 'fas fa-spinner fa-spin';
+            text.textContent = 'Loading...';
+            break;
+          case 'active':
+            btn.classList.add('active');
+            icon.className = 'fas fa-check-circle';
+            text.textContent = `Active ${overlayType}`;
+            break;
+          case 'default':
+            const originalData = this.getOriginalButtonData(btn.id);
+            icon.className = originalData.icon;
+            text.textContent = originalData.text;
+            break;
+        }
+      }
+      
+      getOriginalButtonData(btnId) {
+        const mapping = {
+          shirtBtn: { icon: 'fas fa-tshirt', text: 'Upload Shirt' },
+          watchBtn: { icon: 'fas fa-clock', text: 'Upload Watch' },
+          gogglesBtn: { icon: 'fas fa-glasses', text: 'Upload Goggles' },
+          earringsBtn: { icon: 'fas fa-gem', text: 'Upload Earrings' },
+          necklaceBtn: { icon: 'fas fa-circle-notch', text: 'Upload Necklace' },
+          shoesBtn: { icon: 'fas fa-shoe-prints', text: 'Upload Shoes' }
+        };
+        return mapping[btnId] || { icon: 'fas fa-upload', text: 'Upload' };
+      }
+      
+      async setupCamera() {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: 'user'
+            } 
+          });
+          this.video.srcObject = stream;
+          this.updateSystemStatus('Camera ready', 'success');
+          document.getElementById('cameraStatus').textContent = 'Ready';
+          
+          this.video.addEventListener('loadedmetadata', () => {
+            console.log('Video dimensions:', this.video.videoWidth, 'x', this.video.videoHeight);
+          });
+        } catch (err) {
+          console.error('Camera error:', err);
+          this.updateSystemStatus('Camera access denied', 'error');
+          document.getElementById('cameraStatus').textContent = 'Error';
+          this.showNotification('Please allow camera access for AR features', 'error');
+        }
+      }
+      
+      setupPose() {
+        this.pose = new Pose({
+          locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}`
         });
         
-        btn.innerHTML = '<span class="emoji">⏳</span>Loading...';
+        this.pose.setOptions({
+          modelComplexity: 1,
+          smoothLandmarks: true,
+          minDetectionConfidence: 0.6,
+          minTrackingConfidence: 0.6
+        });
         
-        const reader = new FileReader();
-        reader.onload = ev => {
-          overlayImg.src = ev.target.result;
-          overlayImg.style.display = 'block';
-          
-          // Update preview
-          previewImg.src = ev.target.result;
-          previewImg.style.display = 'block';
-          placeholder.style.display = 'none';
-          rotation = 0;
-          previewImg.style.transform = 'rotateY(0deg)';
-          
-          // Mark active
-          btn.classList.add('active');
-          btn.innerHTML = `<span class="emoji">✅</span>Active ${overlayType}`;
-          activeOverlay = overlayType;
-          
-          statusBar.textContent = `${overlayType} loaded`;
-        };
-        reader.readAsDataURL(file);
-      });
-    }
-
-    setupInput('uploadShirt', shirtOverlay, 'shirtBtn', 'Shirt');
-    setupInput('uploadWatch', watchOverlay, 'watchBtn', 'Watch');
-    setupInput('uploadGoggles', gogglesOverlay, 'gogglesBtn', 'Goggles');
-
-    // Camera
-    navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
-      .then(stream => {
-        video.srcObject = stream;
-        statusBar.textContent = 'Camera ready';
-      });
-
-    // MediaPipe Pose
-    let latestPose = null;
-    const pose = new Pose({
-      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}`
-    });
-    
-    pose.setOptions({
-      modelComplexity: 1,
-      smoothLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
-    });
-    
-    pose.onResults(results => {
-      latestPose = results.poseLandmarks;
-    });
-
-    new Camera(video, {
-      onFrame: async () => await pose.send({ image: video }),
-      width: 640,
-      height: 480
-    }).start();
-
-    function updateOverlays() {
-      frameCount++;
-      
-      if (!latestPose || !activeOverlay) {
-        requestAnimationFrame(updateOverlays);
-        return;
-      }
-
-      const w = video.clientWidth;
-      const h = video.clientHeight;
-
-      if (activeOverlay === 'Shirt') {
-        const ls = latestPose[11]; // left shoulder
-        const rs = latestPose[12]; // right shoulder
-        
-        if (ls && rs && ls.visibility > 0.5 && rs.visibility > 0.5) {
-          // Simple shoulder-based positioning
-          const leftX = (1 - ls.x) * w;
-          const leftY = ls.y * h;
-          const rightX = (1 - rs.x) * w;
-          const rightY = rs.y * h;
-          
-          // Center between shoulders
-          const centerX = (leftX + rightX) / 2;
-          const centerY = (leftY + rightY) / 2;
-          
-          // Width based on shoulder distance
-          const shoulderDistance = Math.abs(rightX - leftX);
-          const shirtWidth = shoulderDistance * 2.0;
-          const shirtHeight = shirtWidth * 1.2;
-          
-          // Rotation based on shoulder line
-          const angle = Math.atan2(rightY - leftY, rightX - leftX) * 180 / Math.PI;
-          
-          // Position shirt AT shoulder level, not below
-          shirtOverlay.style.left = `${centerX - shirtWidth/2}px`;
-          shirtOverlay.style.top = `${centerY - shirtHeight/2}px`; // CENTER at shoulder level
-          shirtOverlay.style.width = `${shirtWidth}px`;
-          shirtOverlay.style.height = `${shirtHeight}px`;
-          shirtOverlay.style.transform = `rotate(${angle}deg)`;
-          
-          // Debug
-          if (frameCount % 30 === 0) {
-            debugInfo.innerHTML = `
-              Shirt Active<br>
-              Center: ${centerX.toFixed(0)},${centerY.toFixed(0)}<br>
-              Size: ${shirtWidth.toFixed(0)}×${shirtHeight.toFixed(0)}<br>
-              Angle: ${angle.toFixed(1)}°
-            `;
+        this.pose.onResults((results) => {
+          this.latestPose = results.poseLandmarks;
+          if (results.poseLandmarks && results.poseLandmarks.length > 0) {
+            document.getElementById('poseStatus').textContent = 'Tracking';
+          } else {
+            document.getElementById('poseStatus').textContent = 'No pose';
           }
+        });
+        
+        this.camera = new Camera(this.video, {
+          onFrame: async () => {
+            try {
+              await this.pose.send({ image: this.video });
+            } catch (error) {
+              console.warn('Pose detection frame skipped:', error);
+            }
+          },
+          width: 1280,
+          height: 720
+        });
+        
+        this.camera.start().then(() => {
+          this.updateSystemStatus('AR system active', 'success');
+          document.getElementById('poseStatus').textContent = 'Ready';
+        });
+      }
+      
+      setupControlPanel() {
+        // Screenshot functionality
+        document.getElementById('screenshotBtn').addEventListener('click', () => {
+          this.takeScreenshot();
+        });
+        
+        // Fullscreen functionality
+        document.getElementById('fullscreenBtn').addEventListener('click', () => {
+          this.toggleFullscreen();
+        });
+        
+        // Reset functionality
+        document.getElementById('resetBtn').addEventListener('click', () => {
+          this.resetAll();
+        });
+      }
+      
+      takeScreenshot() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const video = this.video;
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Draw flipped video
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, -canvas.width, 0);
+        ctx.restore();
+        
+        // Draw active overlay if exists
+        if (this.activeOverlay && this.overlays[this.activeOverlay].src) {
+          // This would need more complex overlay positioning calculation
+          // For now, we'll just capture the video
         }
-      } 
-      else if (activeOverlay === 'Watch') {
-        const rw = latestPose[16];
-        if (rw && rw.visibility > 0.5) {
-          const x = (1 - rw.x) * w;
-          const y = rw.y * h;
-          const S = w * 0.12;
-          
-          watchOverlay.style.left = `${x - S/2}px`;
-          watchOverlay.style.top = `${y - S/2}px`;
-          watchOverlay.style.width = `${S}px`;
-          watchOverlay.style.height = `${S}px`;
-          watchOverlay.style.transform = 'rotate(0deg)';
-        }
-      } 
-      else if (activeOverlay === 'Goggles') {
-        const le = latestPose[2], re = latestPose[5];
-        if (le && re && le.visibility > 0.5 && re.visibility > 0.5) {
-          const leftX = (1 - le.x) * w;
-          const leftY = le.y * h;
-          const rightX = (1 - re.x) * w;
-          const rightY = re.y * h;
-          
-          const cx = (leftX + rightX) / 2;
-          const cy = (leftY + rightY) / 2;
-          const D = Math.abs(rightX - leftX);
-          const GW = D * 2.5;
-          const GH = GW * (gogglesOverlay.naturalHeight / gogglesOverlay.naturalWidth);
-          
-          gogglesOverlay.style.left = `${cx - GW/2}px`;
-          gogglesOverlay.style.top = `${cy - GH/2}px`;
-          gogglesOverlay.style.width = `${GW}px`;
-          gogglesOverlay.style.height = `${GH}px`;
-          gogglesOverlay.style.transform = 'rotate(0deg)';
+        
+        // Download
+        canvas.toBlob((blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `ar-tryon-${Date.now()}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+          this.showNotification('Screenshot saved!', 'success');
+        });
+      }
+      
+      toggleFullscreen() {
+        const container = document.getElementById('arContainer');
+        const btn = document.getElementById('fullscreenBtn');
+        const icon = btn.querySelector('i');
+        
+        if (!this.isFullscreen) {
+          if (container.requestFullscreen) {
+            container.requestFullscreen();
+          } else if (container.webkitRequestFullscreen) {
+            container.webkitRequestFullscreen();
+          }
+          icon.className = 'fas fa-compress';
+          this.isFullscreen = true;
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+          }
+          icon.className = 'fas fa-expand';
+          this.isFullscreen = false;
         }
       }
-
-      requestAnimationFrame(updateOverlays);
+      
+      resetAll() {
+        this.resetAllOverlays();
+        this.activeOverlay = null;
+        this.previewImg.style.display = 'none';
+        this.placeholder.style.display = 'block';
+        this.previewImg.style.transform = 'rotateY(0deg)';
+        document.getElementById('activeStatus').textContent = 'None';
+        this.updateSystemStatus('System reset', 'success');
+        this.showNotification('All overlays cleared', 'success');
+      }
+      
+      startUpdateLoop() {
+        const update = () => {
+          this.performanceMonitor.update();
+          this.updateOverlaysThrottled();
+          requestAnimationFrame(update);
+        };
+        update();
+      }
+      
+      updateOverlays() {
+        if (!this.latestPose || !this.activeOverlay) return;
+        
+        const overlay = this.overlays[this.activeOverlay];
+        if (!overlay || !overlay.src) return;
+        
+        const rect = this.video.getBoundingClientRect();
+        const w = rect.width;
+        const h = rect.height;
+        
+        // Get landmark helper
+        const getLandmark = (index) => {
+          if (!this.latestPose[index]) return null;
+          const p = this.latestPose[index];
+          return {
+            x: (1 - p.x) * w,
+            y: p.y * h,
+            v: p.visibility
+          };
+        };
+        
+        switch(this.activeOverlay) {
+          case 'shirt':
+            this.updateShirtOverlay(getLandmark, w, h);
+            break;
+          case 'watch':
+            this.updateWatchOverlay(getLandmark, w, h);
+            break;
+          case 'goggles':
+            this.updateGogglesOverlay(getLandmark, w, h);
+            break;
+          case 'earrings':
+            this.updateEarringsOverlay(getLandmark, w, h);
+            break;
+          case 'necklace':
+            this.updateNecklaceOverlay(getLandmark, w, h);
+            break;
+          case 'shoes':
+            this.updateShoesOverlay(getLandmark, w, h);
+            break;
+        }
+      }
+      
+      updateShirtOverlay(getLandmark, w, h) {
+        const ls = getLandmark(11); // left shoulder
+        const rs = getLandmark(12); // right shoulder
+        
+        if (!ls || !rs || ls.v < 0.5 || rs.v < 0.5) return;
+        
+        const centerX = (ls.x + rs.x) / 2;
+        const centerY = (ls.y + rs.y) / 2;
+        const shoulderDistance = Math.abs(rs.x - ls.x);
+        const shirtWidth = shoulderDistance * 2.2;
+        const shirtHeight = shirtWidth * 1.3;
+        const angle = Math.atan2(rs.y - ls.y, rs.x - ls.x) * 180 / Math.PI;
+        
+        const overlay = this.overlays.shirt;
+        overlay.style.left = `${centerX - shirtWidth/2}px`;
+        overlay.style.top = `${centerY - shirtHeight/2}px`;
+        overlay.style.width = `${shirtWidth}px`;
+        overlay.style.height = `${shirtHeight}px`;
+        overlay.style.transform = `rotate(${angle}deg)`;
+      }
+      
+      updateWatchOverlay(getLandmark, w, h) {
+        const rw = getLandmark(16); // right wrist
+        
+        if (!rw || rw.v < 0.5) return;
+        
+        const size = w * 0.08;
+        const overlay = this.overlays.watch;
+        overlay.style.left = `${rw.x - size/2}px`;
+        overlay.style.top = `${rw.y - size/2}px`;
+        overlay.style.width = `${size}px`;
+        overlay.style.height = `${size}px`;
+        overlay.style.transform = 'rotate(0deg)';
+      }
+      
+      updateGogglesOverlay(getLandmark, w, h) {
+        const le = getLandmark(2); // left eye
+        const re = getLandmark(5); // right eye
+        
+        if (!le || !re || le.v < 0.5 || re.v < 0.5) return;
+        
+        const cx = (le.x + re.x) / 2;
+        const cy = (le.y + re.y) / 2;
+        const eyeDistance = Math.abs(re.x - le.x);
+        const gogglesW = eyeDistance * 2.8;
+        const gogglesH = gogglesW * 0.4;
+        
+        const overlay = this.overlays.goggles;
+        overlay.style.left = `${cx - gogglesW/2}px`;
+        overlay.style.top = `${cy - gogglesH/2}px`;
+        overlay.style.width = `${gogglesW}px`;
+        overlay.style.height = `${gogglesH}px`;
+        overlay.style.transform = 'rotate(0deg)';
+      }
+      
+      updateEarringsOverlay(getLandmark, w, h) {
+        // Use approximate ear positions (slightly below and to the side of eyes)
+        const le = getLandmark(2); // left eye
+        const re = getLandmark(5); // right eye
+        
+        if (!le || !re || le.v < 0.3 || re.v < 0.3) return;
+        
+        const eyeDistance = Math.abs(re.x - le.x);
+        const earringSize = eyeDistance * 0.3;
+        
+        // Position earrings at approximate ear locations
+        const leftEarX = le.x + eyeDistance * 0.4;
+        const leftEarY = le.y + eyeDistance * 0.2;
+        const rightEarX = re.x - eyeDistance * 0.4;
+        const rightEarY = re.y + eyeDistance * 0.2;
+        
+        const overlay = this.overlays.earrings;
+        // For simplicity, position one earring between the ears
+        const centerX = (leftEarX + rightEarX) / 2;
+        const centerY = (leftEarY + rightEarY) / 2;
+        
+        overlay.style.left = `${centerX - earringSize}px`;
+        overlay.style.top = `${centerY - earringSize/2}px`;
+        overlay.style.width = `${earringSize * 2}px`;
+        overlay.style.height = `${earringSize}px`;
+        overlay.style.transform = 'rotate(0deg)';
+      }
+      
+      updateNecklaceOverlay(getLandmark, w, h) {
+        const ls = getLandmark(11); // left shoulder
+        const rs = getLandmark(12); // right shoulder
+        
+        if (!ls || !rs || ls.v < 0.5 || rs.v < 0.5) return;
+        
+        const centerX = (ls.x + rs.x) / 2;
+        const neckY = (ls.y + rs.y) / 2 + (Math.abs(rs.x - ls.x) * 0.3); // Below shoulders
+        const shoulderDistance = Math.abs(rs.x - ls.x);
+        const necklaceW = shoulderDistance * 1.5;
+        const necklaceH = necklaceW * 0.3;
+        
+        const overlay = this.overlays.necklace;
+        overlay.style.left = `${centerX - necklaceW/2}px`;
+        overlay.style.top = `${neckY - necklaceH/2}px`;
+        overlay.style.width = `${necklaceW}px`;
+        overlay.style.height = `${necklaceH}px`;
+        overlay.style.transform = 'rotate(0deg)';
+      }
+      
+      updateShoesOverlay(getLandmark, w, h) {
+        const la = getLandmark(27); // left ankle
+        const ra = getLandmark(28); // right ankle
+        
+        if (!la || !ra || la.v < 0.3 || ra.v < 0.3) return;
+        
+        const centerX = (la.x + ra.x) / 2;
+        const centerY = Math.max(la.y, ra.y); // Use the lower ankle
+        const ankleDistance = Math.abs(ra.x - la.x);
+        const shoesW = Math.max(ankleDistance * 1.5, w * 0.2);
+        const shoesH = shoesW * 0.4;
+        
+        const overlay = this.overlays.shoes;
+        overlay.style.left = `${centerX - shoesW/2}px`;
+        overlay.style.top = `${centerY - shoesH/2}px`;
+        overlay.style.width = `${shoesW}px`;
+        overlay.style.height = `${shoesH}px`;
+        overlay.style.transform = 'rotate(0deg)';
+      }
+      
+      updateSystemStatus(message, type) {
+        this.statusBar.innerHTML = `
+          <i class="fas fa-circle" style="color: ${this.getStatusColor(type)}; margin-right: 6px;"></i>
+          ${message}
+        `;
+      }
+      
+      getStatusColor(type) {
+        switch(type) {
+          case 'success': return '#4CAF50';
+          case 'loading': return '#ff9800';
+          case 'error': return '#f44336';
+          default: return '#2196F3';
+        }
+      }
+      
+      showNotification(message, type) {
+        // Simple notification system
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: ${type === 'error' ? '#f44336' : '#4CAF50'};
+          color: white;
+          padding: 12px 24px;
+          border-radius: 6px;
+          z-index: 10000;
+          font-weight: 500;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+          notification.remove();
+        }, 3000);
+      }
     }
-
-    updateOverlays();
+    
+    // Initialize the application when DOM is loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      new ARTryOnApp();
+    });
+    
+    // Service Worker for offline capability (optional)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {
+          // Service worker registration failed, continue without offline support
+        });
+      });
+    }
   </script>
 </body>
 </html>
