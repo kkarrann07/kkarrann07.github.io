@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ChechIT – AR Try-On</title>
+  <title>CAR Try-On</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { 
@@ -143,12 +143,6 @@
             <span class="emoji">🕶</span>Upload Goggles
           </div>
         </div>
-        <div class="upload-wrapper">
-          <input id="uploadShoes" type="file" accept="image/png" />
-          <div class="upload-btn" id="shoesBtn">
-            <span class="emoji">👟</span>Upload Shoes
-          </div>
-        </div>
       </div>
       <div class="preview-section">
         <p><span class="emoji">🖼</span>3D Preview:</p>
@@ -169,7 +163,6 @@
     <img id="shirtOverlay" class="overlay" style="display:none" />
     <img id="watchOverlay" class="overlay" style="display:none" />
     <img id="gogglesOverlay" class="overlay" style="display:none" />
-    <img id="shoesOverlay" class="overlay" style="display:none" />
     <div class="status-bar" id="statusBar">Initializing...</div>
     <div class="debug-info" id="debugInfo">Debug: Ready</div>
   </div>
@@ -183,7 +176,6 @@
     const shirtOverlay = document.getElementById('shirtOverlay');
     const watchOverlay = document.getElementById('watchOverlay');
     const gogglesOverlay = document.getElementById('gogglesOverlay');
-    const shoesOverlay = document.getElementById('shoesOverlay');
     const previewImg = document.getElementById('previewImg');
     const placeholder = document.getElementById('placeholder');
     const rotator = document.getElementById('rotator');
@@ -206,7 +198,7 @@
         if (!isDragging) return;
         const deltaX = e.clientX - startX;
         rotation += deltaX * 0.5;
-        previewImg.style.transform = `rotateY(${rotation}deg)`;
+        previewImg.style.transform = rotateY(${rotation}deg);
         startX = e.clientX;
       });
       
@@ -227,7 +219,7 @@
         if (!file) return;
         
         // Reset all
-        [shirtOverlay, watchOverlay, gogglesOverlay, shoesOverlay].forEach(o => {
+        [shirtOverlay, watchOverlay, gogglesOverlay].forEach(o => {
           o.style.display = 'none';
           o.src = '';
         });
@@ -252,10 +244,10 @@
           
           // Mark active
           btn.classList.add('active');
-          btn.innerHTML = `<span class="emoji">✅</span>Active ${overlayType}`;
+          btn.innerHTML = <span class="emoji">✅</span>Active ${overlayType};
           activeOverlay = overlayType;
           
-          statusBar.textContent = `${overlayType} loaded`;
+          statusBar.textContent = ${overlayType} loaded;
         };
         reader.readAsDataURL(file);
       });
@@ -264,7 +256,6 @@
     setupInput('uploadShirt', shirtOverlay, 'shirtBtn', 'Shirt');
     setupInput('uploadWatch', watchOverlay, 'watchBtn', 'Watch');
     setupInput('uploadGoggles', gogglesOverlay, 'gogglesBtn', 'Goggles');
-    setupInput('uploadShoes', shoesOverlay, 'shoesBtn', 'Shoes');
 
     // Camera
     navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
@@ -276,7 +267,7 @@
     // MediaPipe Pose
     let latestPose = null;
     const pose = new Pose({
-      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}`
+      locateFile: f => https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}
     });
     
     pose.setOptions({
@@ -312,25 +303,40 @@
         const rs = latestPose[12]; // right shoulder
         
         if (ls && rs && ls.visibility > 0.5 && rs.visibility > 0.5) {
+          // Simple shoulder-based positioning
           const leftX = (1 - ls.x) * w;
           const leftY = ls.y * h;
           const rightX = (1 - rs.x) * w;
           const rightY = rs.y * h;
           
+          // Center between shoulders
           const centerX = (leftX + rightX) / 2;
           const centerY = (leftY + rightY) / 2;
           
+          // Width based on shoulder distance
           const shoulderDistance = Math.abs(rightX - leftX);
           const shirtWidth = shoulderDistance * 2.0;
           const shirtHeight = shirtWidth * 1.2;
           
+          // Rotation based on shoulder line
           const angle = Math.atan2(rightY - leftY, rightX - leftX) * 180 / Math.PI;
           
-          shirtOverlay.style.left = `${centerX - shirtWidth/2}px`;
-          shirtOverlay.style.top = `${centerY - shirtHeight/2}px`;
-          shirtOverlay.style.width = `${shirtWidth}px`;
-          shirtOverlay.style.height = `${shirtHeight}px`;
-          shirtOverlay.style.transform = `rotate(${angle}deg)`;
+          // Position shirt AT shoulder level, not below
+          shirtOverlay.style.left = ${centerX - shirtWidth/2}px;
+          shirtOverlay.style.top = ${centerY - shirtHeight/2}px; // CENTER at shoulder level
+          shirtOverlay.style.width = ${shirtWidth}px;
+          shirtOverlay.style.height = ${shirtHeight}px;
+          shirtOverlay.style.transform = rotate(${angle}deg);
+          
+          // Debug
+          if (frameCount % 30 === 0) {
+            debugInfo.innerHTML = `
+              Shirt Active<br>
+              Center: ${centerX.toFixed(0)},${centerY.toFixed(0)}<br>
+              Size: ${shirtWidth.toFixed(0)}×${shirtHeight.toFixed(0)}<br>
+              Angle: ${angle.toFixed(1)}°
+            `;
+          }
         }
       } 
       else if (activeOverlay === 'Watch') {
@@ -340,10 +346,10 @@
           const y = rw.y * h;
           const S = w * 0.12;
           
-          watchOverlay.style.left = `${x - S/2}px`;
-          watchOverlay.style.top = `${y - S/2}px`;
-          watchOverlay.style.width = `${S}px`;
-          watchOverlay.style.height = `${S}px`;
+          watchOverlay.style.left = ${x - S/2}px;
+          watchOverlay.style.top = ${y - S/2}px;
+          watchOverlay.style.width = ${S}px;
+          watchOverlay.style.height = ${S}px;
           watchOverlay.style.transform = 'rotate(0deg)';
         }
       } 
@@ -361,50 +367,11 @@
           const GW = D * 2.5;
           const GH = GW * (gogglesOverlay.naturalHeight / gogglesOverlay.naturalWidth);
           
-          gogglesOverlay.style.left = `${cx - GW/2}px`;
-          gogglesOverlay.style.top = `${cy - GH/2}px`;
-          gogglesOverlay.style.width = `${GW}px`;
-          gogglesOverlay.style.height = `${GH}px`;
+          gogglesOverlay.style.left = ${cx - GW/2}px;
+          gogglesOverlay.style.top = ${cy - GH/2}px;
+          gogglesOverlay.style.width = ${GW}px;
+          gogglesOverlay.style.height = ${GH}px;
           gogglesOverlay.style.transform = 'rotate(0deg)';
-        }
-      }
-      else if (activeOverlay === 'Shoes') {
-        const la = latestPose[27]; // left ankle
-        const ra = latestPose[28]; // right ankle
-        
-        if (la && ra && la.visibility > 0.3 && ra.visibility > 0.3) {
-          const leftX = (1 - la.x) * w;
-          const leftY = la.y * h;
-          const rightX = (1 - ra.x) * w;
-          const rightY = ra.y * h;
-          
-          // Center between both feet
-          const centerX = (leftX + rightX) / 2;
-          const centerY = (leftY + rightY) / 2;
-          
-          // Width based on distance between ankles
-          const ankleDistance = Math.abs(rightX - leftX);
-          const shoesWidth = Math.max(ankleDistance * 1.2, w * 0.25); // Minimum width
-          const shoesHeight = shoesWidth * (shoesOverlay.naturalHeight / shoesOverlay.naturalWidth);
-          
-          // Slight rotation based on ankle line
-          const angle = Math.atan2(rightY - leftY, rightX - leftX) * 180 / Math.PI;
-          
-          shoesOverlay.style.left = `${centerX - shoesWidth/2}px`;
-          shoesOverlay.style.top = `${centerY - shoesHeight/2}px`;
-          shoesOverlay.style.width = `${shoesWidth}px`;
-          shoesOverlay.style.height = `${shoesHeight}px`;
-          shoesOverlay.style.transform = `rotate(${angle}deg)`;
-          
-          // Debug info
-          if (frameCount % 30 === 0) {
-            debugInfo.innerHTML = `
-              Shoes Active<br>
-              Center: ${centerX.toFixed(0)},${centerY.toFixed(0)}<br>
-              Size: ${shoesWidth.toFixed(0)}×${shoesHeight.toFixed(0)}<br>
-              Angle: ${angle.toFixed(1)}°
-            `;
-          }
         }
       }
 
