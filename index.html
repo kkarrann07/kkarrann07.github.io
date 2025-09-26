@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ChechIT </title>
+  <title>ChechIT – Premium AR Try-On Experience</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { 
@@ -10,29 +10,6 @@
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: #333; 
       min-height: 100vh;
-      position: relative;
-      overflow-x: hidden;
-    }
-    
-    /* Animated background */
-    body::before {
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: 
-        radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
-        radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
-      z-index: -1;
-      animation: float 6s ease-in-out infinite;
-    }
-    
-    @keyframes float {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-20px); }
     }
     
     header { 
@@ -43,8 +20,6 @@
       font-size: 2.5rem; 
       font-weight: 700;
       box-shadow: 0 8px 40px rgba(0,0,0,0.3);
-      position: relative;
-      overflow: hidden;
     }
     
     .header-subtitle {
@@ -52,7 +27,6 @@
       font-weight: 300;
       opacity: 0.9;
       margin-top: 0.8rem;
-      letter-spacing: 1px;
     }
     
     section { 
@@ -63,9 +37,7 @@
       box-shadow: 0 20px 60px rgba(0,0,0,0.1);
       padding: 3.5rem;
       backdrop-filter: blur(20px);
-      border: 1px solid rgba(255,255,255,0.3);
-      position: relative;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.4s ease;
     }
     
     section:hover {
@@ -78,12 +50,9 @@
       background: linear-gradient(135deg, #2c3e50, #3498db);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      background-clip: text;
       margin-bottom: 2rem; 
       text-align: center; 
-      position: relative;
       font-weight: 700;
-      letter-spacing: -0.5px;
     }
     
     h2::after { 
@@ -96,7 +65,6 @@
       height: 5px;
       background: linear-gradient(135deg, #667eea, #764ba2);
       border-radius: 3px;
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
     }
     
     p { 
@@ -105,7 +73,6 @@
       margin-bottom: 2.5rem; 
       font-size: 1.2rem;
       line-height: 1.7;
-      font-weight: 400;
     }
     
     iframe { 
@@ -115,13 +82,10 @@
       border-radius: 20px; 
       box-shadow: 0 15px 50px rgba(0,0,0,0.15);
       transition: all 0.4s ease;
-      border: 3px solid transparent;
-      background: linear-gradient(white, white) padding-box, 
-                  linear-gradient(135deg, #667eea, #764ba2) border-box;
     }
     
     iframe:hover { 
-      transform: translateY(-10px) scale(1.02);
+      transform: translateY(-10px);
       box-shadow: 0 25px 70px rgba(0,0,0,0.2);
     }
     
@@ -140,7 +104,6 @@
     
     .upload-wrapper { 
       position: relative; 
-      overflow: hidden;
       border-radius: 20px;
       transition: all 0.3s ease;
     }
@@ -155,6 +118,7 @@
       width: 100%; 
       height: 100%; 
       cursor: pointer;
+      z-index: 10;
     }
     
     .upload-btn { 
@@ -167,28 +131,12 @@
       color: #fff;
       border-radius: 20px; 
       cursor: pointer; 
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.4s ease;
       font-weight: 600; 
       font-size: 1rem;
       box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
       user-select: none;
       position: relative;
-      overflow: hidden;
-    }
-    
-    .upload-btn::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-      transition: all 0.6s ease;
-    }
-    
-    .upload-btn:hover::before {
-      left: 100%;
     }
     
     .upload-btn:hover { 
@@ -199,18 +147,16 @@
     .upload-btn.active { 
       background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
       box-shadow: 0 10px 30px rgba(76, 175, 80, 0.5);
-      animation: pulse 2s infinite;
     }
     
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
+    .upload-btn.loading {
+      background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+      pointer-events: none;
     }
     
     .emoji { 
       font-size: 1.5rem; 
       margin-right: 8px;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
     }
     
     .preview-section { 
@@ -236,22 +182,18 @@
       align-items: center; 
       justify-content: center; 
       cursor: grab; 
-      transform-style: preserve-3d; 
       margin: 0 auto;
       transition: all 0.4s ease;
       box-shadow: 0 15px 40px rgba(0,0,0,0.1);
-      position: relative;
     }
     
     .rotator:hover {
       border-color: #667eea;
       box-shadow: 0 25px 60px rgba(102, 126, 234, 0.3);
-      transform: translateY(-5px);
     }
     
     .rotator:active { 
       cursor: grabbing;
-      transform: scale(0.95);
     }
     
     .rotator img { 
@@ -261,7 +203,6 @@
       user-select: none; 
       border-radius: 15px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-      transition: all 0.2s ease-out;
     }
     
     .rotator-placeholder { 
@@ -282,12 +223,6 @@
       box-shadow: 0 25px 80px rgba(0,0,0,0.3);
       background: #000;
       border: 6px solid #fff;
-      transition: all 0.4s ease;
-    }
-    
-    .ar-container:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 35px 100px rgba(0,0,0,0.4);
     }
     
     video { 
@@ -317,22 +252,6 @@
       border-radius: 30px; 
       font-size: 1rem;
       font-weight: 600;
-      backdrop-filter: blur(15px);
-      z-index: 100;
-    }
-    
-    .debug-info { 
-      position: absolute; 
-      top: 80px; 
-      right: 25px; 
-      background: rgba(0,0,0,0.85);
-      color: #fff; 
-      padding: 15px 18px; 
-      border-radius: 15px; 
-      font-size: 0.85rem;
-      font-family: 'Courier New', monospace; 
-      max-width: 220px;
-      backdrop-filter: blur(15px);
       z-index: 100;
     }
     
@@ -360,7 +279,6 @@
     .jewelry-btn {
       background: rgba(255,255,255,0.2);
       border: 2px solid rgba(255,255,255,0.3);
-      backdrop-filter: blur(10px);
     }
     
     .jewelry-btn:hover {
@@ -411,47 +329,46 @@
 
   <section>
     <h2><span class="emoji">🎨</span>Upload Your Items</h2>
-    <p>Upload high-quality images for the most realistic virtual try-on experience. One item at a time for optimal performance.</p>
+    <p>Upload high-quality images for the most realistic virtual try-on experience.</p>
     
     <div class="upload-section">
       <div class="upload-controls">
         <div class="upload-wrapper">
-          <input id="uploadShirt" type="file" accept="image/png" />
+          <input id="uploadShirt" type="file" accept="image/*" />
           <div class="upload-btn" id="shirtBtn">
             <span class="emoji">👕</span>Upload Shirt
           </div>
         </div>
         <div class="upload-wrapper">
-          <input id="uploadWatch" type="file" accept="image/png" />
+          <input id="uploadWatch" type="file" accept="image/*" />
           <div class="upload-btn" id="watchBtn">
             <span class="emoji">⌚</span>Upload Watch
           </div>
         </div>
         <div class="upload-wrapper">
-          <input id="uploadGoggles" type="file" accept="image/png" />
+          <input id="uploadGoggles" type="file" accept="image/*" />
           <div class="upload-btn" id="gogglesBtn">
             <span class="emoji">🕶</span>Upload Goggles
           </div>
         </div>
         
-        <!-- Jewelry Section -->
         <div class="jewelry-section">
           <div class="jewelry-title">💎 Jewelry Collection</div>
           <div class="jewelry-grid">
             <div class="upload-wrapper">
-              <input id="uploadEarrings" type="file" accept="image/png" />
+              <input id="uploadEarrings" type="file" accept="image/*" />
               <div class="upload-btn jewelry-btn" id="earringsBtn">
                 <span class="emoji">💎</span>Earrings
               </div>
             </div>
             <div class="upload-wrapper">
-              <input id="uploadNecklace" type="file" accept="image/png" />
+              <input id="uploadNecklace" type="file" accept="image/*" />
               <div class="upload-btn jewelry-btn" id="necklaceBtn">
                 <span class="emoji">📿</span>Necklace
               </div>
             </div>
             <div class="upload-wrapper">
-              <input id="uploadRing" type="file" accept="image/png" />
+              <input id="uploadRing" type="file" accept="image/*" />
               <div class="upload-btn jewelry-btn" id="ringBtn">
                 <span class="emoji">💍</span>Ring
               </div>
@@ -478,7 +395,7 @@
 
   <section style="text-align: center;">
     <h2><span class="emoji">🎥</span>AR Virtual Experience</h2>
-    <p>Real-time augmented reality with advanced pose detection and natural overlay positioning.</p>
+    <p>Real-time augmented reality with advanced pose detection.</p>
     
     <div class="ar-container">
       <video id="video" autoplay playsinline muted></video>
@@ -489,122 +406,141 @@
       <img id="necklaceOverlay" class="overlay" style="display:none" />
       <img id="ringOverlay" class="overlay" style="display:none" />
       <div class="status-bar" id="statusBar">🚀 Initializing AR System...</div>
-      <div class="debug-info" id="debugInfo">
-        <strong>System Status</strong><br>
-        Ready for magic ✨
-      </div>
     </div>
   </section>
 
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
   <script>
-    // Get all elements
+    console.log('🚀 Starting AR Try-On App...');
+
+    // Get elements
     const video = document.getElementById('video');
     const statusBar = document.getElementById('statusBar');
-    const debugInfo = document.getElementById('debugInfo');
     const previewImg = document.getElementById('previewImg');
     const placeholder = document.getElementById('placeholder');
     const rotator = document.getElementById('rotator');
 
-    // Overlay elements
-    const overlays = {
-      shirtOverlay: document.getElementById('shirtOverlay'),
-      watchOverlay: document.getElementById('watchOverlay'),
-      gogglesOverlay: document.getElementById('gogglesOverlay'),
-      earringsOverlay: document.getElementById('earringsOverlay'),
-      necklaceOverlay: document.getElementById('necklaceOverlay'),
-      ringOverlay: document.getElementById('ringOverlay')
-    };
+    // Get all overlay elements
+    const shirtOverlay = document.getElementById('shirtOverlay');
+    const watchOverlay = document.getElementById('watchOverlay');
+    const gogglesOverlay = document.getElementById('gogglesOverlay');
+    const earringsOverlay = document.getElementById('earringsOverlay');
+    const necklaceOverlay = document.getElementById('necklaceOverlay');
+    const ringOverlay = document.getElementById('ringOverlay');
 
     // State
     let activeOverlay = null;
-    let frameCount = 0;
     let rotation = 0;
+    let isDragging = false;
+    let startX = 0;
 
-    // 3D Rotator
-    let isDragging = false, startX = 0;
-    
-    function setup3DRotator() {
-      rotator.addEventListener('mousedown', e => {
-        isDragging = true;
-        startX = e.clientX;
-        rotator.style.cursor = 'grabbing';
+    console.log('✅ Elements loaded');
+
+    // 3D Rotator functionality
+    rotator.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      rotator.style.cursor = 'grabbing';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const deltaX = e.clientX - startX;
+      rotation += deltaX * 0.5;
+      previewImg.style.transform = `rotateY(${rotation}deg)`;
+      startX = e.clientX;
+    });
+
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+      rotator.style.cursor = 'grab';
+    });
+
+    // Reset all overlays function
+    function resetAll() {
+      console.log('🔄 Resetting all overlays');
+      
+      // Hide all overlays
+      [shirtOverlay, watchOverlay, gogglesOverlay, earringsOverlay, necklaceOverlay, ringOverlay].forEach(overlay => {
+        overlay.style.display = 'none';
+        overlay.src = '';
       });
       
-      document.addEventListener('mousemove', e => {
-        if (!isDragging) return;
-        const deltaX = e.clientX - startX;
-        rotation += deltaX * 0.5;
-        previewImg.style.transform = `rotateY(${rotation}deg)`;
-        startX = e.clientX;
+      // Reset all buttons
+      document.querySelectorAll('.upload-btn').forEach(btn => {
+        btn.classList.remove('active', 'loading');
+        // Reset button text based on ID
+        if (btn.id === 'shirtBtn') btn.innerHTML = '<span class="emoji">👕</span>Upload Shirt';
+        else if (btn.id === 'watchBtn') btn.innerHTML = '<span class="emoji">⌚</span>Upload Watch';
+        else if (btn.id === 'gogglesBtn') btn.innerHTML = '<span class="emoji">🕶</span>Upload Goggles';
+        else if (btn.id === 'earringsBtn') btn.innerHTML = '<span class="emoji">💎</span>Earrings';
+        else if (btn.id === 'necklaceBtn') btn.innerHTML = '<span class="emoji">📿</span>Necklace';
+        else if (btn.id === 'ringBtn') btn.innerHTML = '<span class="emoji">💍</span>Ring';
       });
       
-      document.addEventListener('mouseup', () => {
-        isDragging = false;
-        rotator.style.cursor = 'grab';
-      });
+      activeOverlay = null;
     }
 
-    // Simple upload function
-    function setupUpload(inputId, overlayId, btnId, overlayType) {
-      const input = document.getElementById(inputId);
-      const overlay = overlays[overlayId];
-      const btn = document.getElementById(btnId);
+    // Upload handler function
+    function handleUpload(inputElement, overlayElement, buttonElement, overlayName) {
+      console.log(`🔧 Setting up upload for: ${overlayName}`);
       
-      console.log('Setting up:', inputId, overlayType); // Debug
-      
-      input.addEventListener('change', function(e) {
-        const file = e.target.files[0];
+      inputElement.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        console.log(`📁 File selected for ${overlayName}:`, file?.name);
+        
         if (!file) return;
         
-        console.log('File selected:', file.name); // Debug
+        if (!file.type.startsWith('image/')) {
+          alert('Please select an image file');
+          return;
+        }
         
-        // Reset all overlays
-        Object.values(overlays).forEach(o => {
-          o.style.display = 'none';
-          o.src = '';
-        });
+        // Reset everything first
+        resetAll();
         
-        // Reset all buttons
-        document.querySelectorAll('.upload-btn').forEach(b => {
-          b.classList.remove('active');
-          // Reset button text
-          if (b.id === 'shirtBtn') b.innerHTML = '<span class="emoji">👕</span>Upload Shirt';
-          else if (b.id === 'watchBtn') b.innerHTML = '<span class="emoji">⌚</span>Upload Watch';
-          else if (b.id === 'gogglesBtn') b.innerHTML = '<span class="emoji">🕶</span>Upload Goggles';
-          else if (b.id === 'earringsBtn') b.innerHTML = '<span class="emoji">💎</span>Earrings';
-          else if (b.id === 'necklaceBtn') b.innerHTML = '<span class="emoji">📿</span>Necklace';
-          else if (b.id === 'ringBtn') b.innerHTML = '<span class="emoji">💍</span>Ring';
-        });
+        // Show loading state
+        buttonElement.classList.add('loading');
+        buttonElement.innerHTML = '<span class="emoji">⏳</span>Loading...';
         
-        // Show loading
-        btn.innerHTML = '<span class="emoji">⏳</span>Loading...';
+        console.log(`📖 Reading file for ${overlayName}...`);
         
         const reader = new FileReader();
-        reader.onload = function(ev) {
-          console.log('File loaded successfully'); // Debug
+        
+        reader.onload = function(e) {
+          console.log(`✅ File loaded successfully for ${overlayName}`);
           
-          // Set overlay image
-          overlay.src = ev.target.result;
-          overlay.style.display = 'block';
+          // Set the overlay image
+          overlayElement.src = e.target.result;
+          overlayElement.style.display = 'block';
           
-          // Update preview
-          previewImg.src = ev.target.result;
+          // Update 3D preview
+          previewImg.src = e.target.result;
           previewImg.style.display = 'block';
           placeholder.style.display = 'none';
           rotation = 0;
           previewImg.style.transform = 'rotateY(0deg)';
           
-          // Set active state
-          btn.classList.add('active');
-          btn.innerHTML = `<span class="emoji">✅</span>Active ${overlayType}`;
-          activeOverlay = overlayType;
+          // Update button state
+          buttonElement.classList.remove('loading');
+          buttonElement.classList.add('active');
+          buttonElement.innerHTML = `<span class="emoji">✅</span>Active ${overlayName}`;
           
-          statusBar.innerHTML = `✨ ${overlayType} loaded successfully!`;
-          debugInfo.innerHTML = `<strong>System Status</strong><br>${overlayType} Active 🎯<br>Tracking in progress...`;
+          // Set active overlay
+          activeOverlay = overlayName;
           
-          console.log('Active overlay set to:', activeOverlay); // Debug
+          // Update status
+          statusBar.innerHTML = `✨ ${overlayName} loaded successfully!`;
+          
+          console.log(`🎯 ${overlayName} is now active`);
+        };
+        
+        reader.onerror = function() {
+          console.error(`❌ Error reading file for ${overlayName}`);
+          buttonElement.classList.remove('loading');
+          buttonElement.innerHTML = '<span class="emoji">❌</span>Error';
+          alert('Error reading file. Please try again.');
         };
         
         reader.readAsDataURL(file);
@@ -612,29 +548,74 @@
     }
 
     // Setup all uploads
-    setupUpload('uploadShirt', 'shirtOverlay', 'shirtBtn', 'Shirt');
-    setupUpload('uploadWatch', 'watchOverlay', 'watchBtn', 'Watch');
-    setupUpload('uploadGoggles', 'gogglesOverlay', 'gogglesBtn', 'Goggles');
-    setupUpload('uploadEarrings', 'earringsOverlay', 'earringsBtn', 'Earrings');
-    setupUpload('uploadNecklace', 'necklaceOverlay', 'necklaceBtn', 'Necklace');
-    setupUpload('uploadRing', 'ringOverlay', 'ringBtn', 'Ring');
+    console.log('🔧 Setting up upload handlers...');
+    
+    handleUpload(
+      document.getElementById('uploadShirt'),
+      shirtOverlay,
+      document.getElementById('shirtBtn'),
+      'Shirt'
+    );
+    
+    handleUpload(
+      document.getElementById('uploadWatch'),
+      watchOverlay,
+      document.getElementById('watchBtn'),
+      'Watch'
+    );
+    
+    handleUpload(
+      document.getElementById('uploadGoggles'),
+      gogglesOverlay,
+      document.getElementById('gogglesBtn'),
+      'Goggles'
+    );
+    
+    handleUpload(
+      document.getElementById('uploadEarrings'),
+      earringsOverlay,
+      document.getElementById('earringsBtn'),
+      'Earrings'
+    );
+    
+    handleUpload(
+      document.getElementById('uploadNecklace'),
+      necklaceOverlay,
+      document.getElementById('necklaceBtn'),
+      'Necklace'
+    );
+    
+    handleUpload(
+      document.getElementById('uploadRing'),
+      ringOverlay,
+      document.getElementById('ringBtn'),
+      'Ring'
+    );
+
+    console.log('✅ Upload handlers ready');
 
     // Camera setup
+    console.log('📹 Starting camera...');
+    
     navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
       .then(stream => {
+        console.log('✅ Camera stream obtained');
         video.srcObject = stream;
         statusBar.innerHTML = '📹 Camera ready - Upload an item to begin!';
-        debugInfo.innerHTML = '<strong>System Status</strong><br>Camera: Ready ✅<br>Awaiting upload...';
       })
       .catch(err => {
-        console.error('Camera error:', err);
+        console.error('❌ Camera error:', err);
         statusBar.innerHTML = '❌ Camera access denied';
+        alert('Please allow camera access to use AR features');
       });
 
-    // MediaPipe Pose
+    // MediaPipe Pose setup
+    console.log('🤖 Initializing pose detection...');
+    
     let latestPose = null;
+    
     const pose = new Pose({
-      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}`
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
     });
     
     pose.setOptions({
@@ -644,19 +625,27 @@
       minTrackingConfidence: 0.5
     });
     
-    pose.onResults(results => {
+    pose.onResults((results) => {
       latestPose = results.poseLandmarks;
     });
 
     new Camera(video, {
-      onFrame: async () => await pose.send({ image: video }),
+      onFrame: async () => {
+        try {
+          await pose.send({ image: video });
+        } catch (error) {
+          console.warn('Pose detection frame skipped:', error.message);
+        }
+      },
       width: 640,
       height: 480
-    }).start();
+    }).start().then(() => {
+      console.log('✅ Pose detection started');
+      statusBar.innerHTML = '🎯 AR System ready - Upload an item!';
+    });
 
+    // Overlay update function
     function updateOverlays() {
-      frameCount++;
-      
       if (!latestPose || !activeOverlay) {
         requestAnimationFrame(updateOverlays);
         return;
@@ -665,137 +654,134 @@
       const w = video.clientWidth;
       const h = video.clientHeight;
 
-      if (activeOverlay === 'Shirt') {
-        const ls = latestPose[11]; // left shoulder
-        const rs = latestPose[12]; // right shoulder
-        
-        if (ls && rs && ls.visibility > 0.5 && rs.visibility > 0.5) {
-          const leftX = (1 - ls.x) * w;
-          const leftY = ls.y * h;
-          const rightX = (1 - rs.x) * w;
-          const rightY = rs.y * h;
+      try {
+        if (activeOverlay === 'Shirt') {
+          const ls = latestPose[11]; // left shoulder
+          const rs = latestPose[12]; // right shoulder
           
-          const centerX = (leftX + rightX) / 2;
-          const centerY = (leftY + rightY) / 2;
-          const shoulderDistance = Math.abs(rightX - leftX);
-          const shirtWidth = shoulderDistance * 2.0;
-          const shirtHeight = shirtWidth * 1.2;
-          const angle = Math.atan2(rightY - leftY, rightX - leftX) * 180 / Math.PI;
-          
-          const overlay = overlays.shirtOverlay;
-          overlay.style.left = `${centerX - shirtWidth/2}px`;
-          overlay.style.top = `${centerY - shirtHeight/2}px`;
-          overlay.style.width = `${shirtWidth}px`;
-          overlay.style.height = `${shirtHeight}px`;
-          overlay.style.transform = `rotate(${angle}deg)`;
+          if (ls && rs && ls.visibility > 0.5 && rs.visibility > 0.5) {
+            const leftX = (1 - ls.x) * w;
+            const leftY = ls.y * h;
+            const rightX = (1 - rs.x) * w;
+            const rightY = rs.y * h;
+            
+            const centerX = (leftX + rightX) / 2;
+            const centerY = (leftY + rightY) / 2;
+            const shoulderDistance = Math.abs(rightX - leftX);
+            const shirtWidth = shoulderDistance * 2.0;
+            const shirtHeight = shirtWidth * 1.2;
+            const angle = Math.atan2(rightY - leftY, rightX - leftX) * 180 / Math.PI;
+            
+            shirtOverlay.style.left = `${centerX - shirtWidth/2}px`;
+            shirtOverlay.style.top = `${centerY - shirtHeight/2}px`;
+            shirtOverlay.style.width = `${shirtWidth}px`;
+            shirtOverlay.style.height = `${shirtHeight}px`;
+            shirtOverlay.style.transform = `rotate(${angle}deg)`;
+          }
+        } 
+        else if (activeOverlay === 'Watch') {
+          const rw = latestPose[16];
+          if (rw && rw.visibility > 0.5) {
+            const x = (1 - rw.x) * w;
+            const y = rw.y * h;
+            const S = w * 0.12;
+            
+            watchOverlay.style.left = `${x - S/2}px`;
+            watchOverlay.style.top = `${y - S/2}px`;
+            watchOverlay.style.width = `${S}px`;
+            watchOverlay.style.height = `${S}px`;
+            watchOverlay.style.transform = 'rotate(0deg)';
+          }
+        } 
+        else if (activeOverlay === 'Goggles') {
+          const le = latestPose[2], re = latestPose[5];
+          if (le && re && le.visibility > 0.5 && re.visibility > 0.5) {
+            const leftX = (1 - le.x) * w;
+            const leftY = le.y * h;
+            const rightX = (1 - re.x) * w;
+            const rightY = re.y * h;
+            
+            const cx = (leftX + rightX) / 2;
+            const cy = (leftY + rightY) / 2;
+            const D = Math.abs(rightX - leftX);
+            const GW = D * 2.5;
+            const GH = GW * 0.6; // Fixed aspect ratio
+            
+            gogglesOverlay.style.left = `${cx - GW/2}px`;
+            gogglesOverlay.style.top = `${cy - GH/2}px`;
+            gogglesOverlay.style.width = `${GW}px`;
+            gogglesOverlay.style.height = `${GH}px`;
+            gogglesOverlay.style.transform = 'rotate(0deg)';
+          }
         }
-      } 
-      else if (activeOverlay === 'Watch') {
-        const rw = latestPose[16];
-        if (rw && rw.visibility > 0.5) {
-          const x = (1 - rw.x) * w;
-          const y = rw.y * h;
-          const S = w * 0.12;
-          
-          const overlay = overlays.watchOverlay;
-          overlay.style.left = `${x - S/2}px`;
-          overlay.style.top = `${y - S/2}px`;
-          overlay.style.width = `${S}px`;
-          overlay.style.height = `${S}px`;
-          overlay.style.transform = 'rotate(0deg)';
+        else if (activeOverlay === 'Earrings') {
+          const le = latestPose[2], re = latestPose[5];
+          if (le && re && le.visibility > 0.3 && re.visibility > 0.3) {
+            const leftX = (1 - le.x) * w;
+            const leftY = le.y * h;
+            const rightX = (1 - re.x) * w;
+            const rightY = re.y * h;
+            
+            const eyeDistance = Math.abs(rightX - leftX);
+            const earringSize = eyeDistance * 0.8;
+            const centerX = (leftX + rightX) / 2;
+            const centerY = (leftY + rightY) / 2 + eyeDistance * 0.3;
+            
+            earringsOverlay.style.left = `${centerX - earringSize}px`;
+            earringsOverlay.style.top = `${centerY - earringSize/2}px`;
+            earringsOverlay.style.width = `${earringSize * 2}px`;
+            earringsOverlay.style.height = `${earringSize}px`;
+            earringsOverlay.style.transform = 'rotate(0deg)';
+          }
         }
-      } 
-      else if (activeOverlay === 'Goggles') {
-        const le = latestPose[2], re = latestPose[5];
-        if (le && re && le.visibility > 0.5 && re.visibility > 0.5) {
-          const leftX = (1 - le.x) * w;
-          const leftY = le.y * h;
-          const rightX = (1 - re.x) * w;
-          const rightY = re.y * h;
-          
-          const cx = (leftX + rightX) / 2;
-          const cy = (leftY + rightY) / 2;
-          const D = Math.abs(rightX - leftX);
-          const GW = D * 2.5;
-          const GH = GW * (overlays.gogglesOverlay.naturalHeight / overlays.gogglesOverlay.naturalWidth);
-          
-          const overlay = overlays.gogglesOverlay;
-          overlay.style.left = `${cx - GW/2}px`;
-          overlay.style.top = `${cy - GH/2}px`;
-          overlay.style.width = `${GW}px`;
-          overlay.style.height = `${GH}px`;
-          overlay.style.transform = 'rotate(0deg)';
+        else if (activeOverlay === 'Necklace') {
+          const ls = latestPose[11], rs = latestPose[12];
+          if (ls && rs && ls.visibility > 0.5 && rs.visibility > 0.5) {
+            const leftX = (1 - ls.x) * w;
+            const leftY = ls.y * h;
+            const rightX = (1 - rs.x) * w;
+            const rightY = rs.y * h;
+            
+            const centerX = (leftX + rightX) / 2;
+            const shoulderDistance = Math.abs(rightX - leftX);
+            const necklaceY = (leftY + rightY) / 2 + shoulderDistance * 0.4;
+            const necklaceW = shoulderDistance * 1.8;
+            const necklaceH = necklaceW * 0.3;
+            
+            necklaceOverlay.style.left = `${centerX - necklaceW/2}px`;
+            necklaceOverlay.style.top = `${necklaceY - necklaceH/2}px`;
+            necklaceOverlay.style.width = `${necklaceW}px`;
+            necklaceOverlay.style.height = `${necklaceH}px`;
+            necklaceOverlay.style.transform = 'rotate(0deg)';
+          }
         }
-      }
-      else if (activeOverlay === 'Earrings') {
-        const le = latestPose[2], re = latestPose[5];
-        if (le && re && le.visibility > 0.3 && re.visibility > 0.3) {
-          const leftX = (1 - le.x) * w;
-          const leftY = le.y * h;
-          const rightX = (1 - re.x) * w;
-          const rightY = re.y * h;
-          
-          const eyeDistance = Math.abs(rightX - leftX);
-          const earringSize = eyeDistance * 0.8;
-          const centerX = (leftX + rightX) / 2;
-          const centerY = (leftY + rightY) / 2 + eyeDistance * 0.3;
-          
-          const overlay = overlays.earringsOverlay;
-          overlay.style.left = `${centerX - earringSize}px`;
-          overlay.style.top = `${centerY - earringSize/2}px`;
-          overlay.style.width = `${earringSize * 2}px`;
-          overlay.style.height = `${earringSize}px`;
-          overlay.style.transform = 'rotate(0deg)';
+        else if (activeOverlay === 'Ring') {
+          const rw = latestPose[16];
+          if (rw && rw.visibility > 0.4) {
+            const x = (1 - rw.x) * w;
+            const y = rw.y * h;
+            const ringSize = w * 0.06;
+            const offsetX = x + ringSize;
+            const offsetY = y + ringSize * 0.5;
+            
+            ringOverlay.style.left = `${offsetX - ringSize/2}px`;
+            ringOverlay.style.top = `${offsetY - ringSize/2}px`;
+            ringOverlay.style.width = `${ringSize}px`;
+            ringOverlay.style.height = `${ringSize}px`;
+            ringOverlay.style.transform = 'rotate(0deg)';
+          }
         }
-      }
-      else if (activeOverlay === 'Necklace') {
-        const ls = latestPose[11], rs = latestPose[12];
-        if (ls && rs && ls.visibility > 0.5 && rs.visibility > 0.5) {
-          const leftX = (1 - ls.x) * w;
-          const leftY = ls.y * h;
-          const rightX = (1 - rs.x) * w;
-          const rightY = rs.y * h;
-          
-          const centerX = (leftX + rightX) / 2;
-          const shoulderDistance = Math.abs(rightX - leftX);
-          const necklaceY = (leftY + rightY) / 2 + shoulderDistance * 0.4;
-          const necklaceW = shoulderDistance * 1.8;
-          const necklaceH = necklaceW * 0.3;
-          
-          const overlay = overlays.necklaceOverlay;
-          overlay.style.left = `${centerX - necklaceW/2}px`;
-          overlay.style.top = `${necklaceY - necklaceH/2}px`;
-          overlay.style.width = `${necklaceW}px`;
-          overlay.style.height = `${necklaceH}px`;
-          overlay.style.transform = 'rotate(0deg)';
-        }
-      }
-      else if (activeOverlay === 'Ring') {
-        const rw = latestPose[16];
-        if (rw && rw.visibility > 0.4) {
-          const x = (1 - rw.x) * w;
-          const y = rw.y * h;
-          const ringSize = w * 0.06;
-          const offsetX = x + ringSize;
-          const offsetY = y + ringSize * 0.5;
-          
-          const overlay = overlays.ringOverlay;
-          overlay.style.left = `${offsetX - ringSize/2}px`;
-          overlay.style.top = `${offsetY - ringSize/2}px`;
-          overlay.style.width = `${ringSize}px`;
-          overlay.style.height = `${ringSize}px`;
-          overlay.style.transform = 'rotate(0deg)';
-        }
+      } catch (error) {
+        console.warn('Overlay update error:', error.message);
       }
 
       requestAnimationFrame(updateOverlays);
     }
 
-    // Initialize everything
-    setup3DRotator();
+    // Start the overlay update loop
     updateOverlays();
 
-    console.log('AR Try-On initialized!'); // Debug
+    console.log('🎉 AR Try-On App fully initialized!');
   </script>
 </body>
 </html>
