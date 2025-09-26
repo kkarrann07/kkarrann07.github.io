@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ChechIT – Premium AR Try-On Experience</title>
+  <title>Chech</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { 
@@ -644,7 +644,7 @@
       statusBar.innerHTML = '🎯 AR System ready - Upload an item!';
     });
 
-    // FIXED OVERLAY POSITIONING - UPPER BODY ONLY
+    // FIXED POSITIONING FOR SHIRT AND EARRINGS
     function updateOverlays() {
       if (!latestPose || !activeOverlay) {
         requestAnimationFrame(updateOverlays);
@@ -656,31 +656,29 @@
 
       try {
         if (activeOverlay === 'Shirt') {
-          // SHIRT: Use ONLY upper body landmarks - no hips
+          // SHIRT: Position shirt so its shoulders align with user's shoulders
           const ls = latestPose[11]; // left shoulder
           const rs = latestPose[12]; // right shoulder
           
           if (ls && rs && ls.visibility > 0.5 && rs.visibility > 0.5) {
-            // Calculate shoulder positions
             const leftShoulderX = (1 - ls.x) * w;
             const leftShoulderY = ls.y * h;
             const rightShoulderX = (1 - rs.x) * w;
             const rightShoulderY = rs.y * h;
             
-            // Shoulder center and width
             const shoulderCenterX = (leftShoulderX + rightShoulderX) / 2;
             const shoulderCenterY = (leftShoulderY + rightShoulderY) / 2;
             const shoulderWidth = Math.abs(rightShoulderX - leftShoulderX);
             
-            // Shirt dimensions based ONLY on shoulder measurements
-            const shirtWidth = shoulderWidth * 2.0;  // 2x shoulder width
-            const shirtHeight = shoulderWidth * 1.8; // Height based on shoulder width ratio
+            // Shirt dimensions
+            const shirtWidth = shoulderWidth * 2.2; // Wider to cover torso
+            const shirtHeight = shoulderWidth * 2.5; // Taller proportional to shoulders
             
-            // Position shirt centered on shoulders, extending downward
+            // CRITICAL FIX: Position shirt so its TOP aligns with shoulders, not center
             const shirtX = shoulderCenterX - shirtWidth / 2;
-            const shirtY = shoulderCenterY - shirtHeight * 0.2; // Start slightly above shoulders
+            const shirtY = shoulderCenterY - shirtHeight * 0.15; // Position shirt TOP near shoulders (15% from top)
             
-            // Rotation based on shoulder line
+            // Rotation
             const angle = Math.atan2(rightShoulderY - leftShoulderY, rightShoulderX - leftShoulderX) * 180 / Math.PI;
             
             shirtOverlay.style.left = `${shirtX}px`;
@@ -689,7 +687,7 @@
             shirtOverlay.style.height = `${shirtHeight}px`;
             shirtOverlay.style.transform = `rotate(${angle}deg)`;
             
-            console.log(`👕 Shirt: Upper body only - Center(${shoulderCenterX.toFixed(0)}, ${shoulderCenterY.toFixed(0)}), Size(${shirtWidth.toFixed(0)}x${shirtHeight.toFixed(0)})`);
+            console.log(`👕 Shirt: TOP aligned with shoulders at Y=${shirtY.toFixed(0)}, shoulder Y=${shoulderCenterY.toFixed(0)}`);
           }
         } 
         else if (activeOverlay === 'Watch') {
@@ -697,7 +695,7 @@
           if (rw && rw.visibility > 0.5) {
             const x = (1 - rw.x) * w;
             const y = rw.y * h;
-            const S = w * 0.08;
+            const S = w * 0.09;
             
             watchOverlay.style.left = `${x - S/2}px`;
             watchOverlay.style.top = `${y - S/2}px`;
@@ -730,8 +728,10 @@
           }
         }
         else if (activeOverlay === 'Earrings') {
+          // EARRINGS: Fix positioning to be at actual ear locations, not between eyes
           const le = latestPose[2]; // left eye
           const re = latestPose[5]; // right eye
+          
           if (le && re && le.visibility > 0.3 && re.visibility > 0.3) {
             const leftEyeX = (1 - le.x) * w;
             const leftEyeY = le.y * h;
@@ -739,30 +739,36 @@
             const rightEyeY = re.y * h;
             
             const eyeDistance = Math.abs(rightEyeX - leftEyeX);
-            const earOffset = eyeDistance * 0.8;
-            const earDropOffset = eyeDistance * 0.3;
+            const eyeCenterX = (leftEyeX + rightEyeX) / 2;
+            const eyeCenterY = (leftEyeY + rightEyeY) / 2;
             
-            const leftEarX = leftEyeX + earOffset;
-            const leftEarY = leftEyeY + earDropOffset;
-            const rightEarX = rightEyeX - earOffset;
-            const rightEarY = rightEyeY + earDropOffset;
+            // CRITICAL FIX: Calculate actual ear positions
+            // Ears are typically 1.5x eye distance away from face center, and slightly below eye level
+            const earHorizontalOffset = eyeDistance * 1.2; // Distance from center to each ear
+            const earVerticalOffset = eyeDistance * 0.2; // Slightly below eye level
             
+            // Calculate individual ear positions
+            const leftEarX = eyeCenterX - earHorizontalOffset;
+            const leftEarY = eyeCenterY + earVerticalOffset;
+            const rightEarX = eyeCenterX + earHorizontalOffset;
+            const rightEarY = eyeCenterY + earVerticalOffset;
+            
+            // For display, use the full width to show both earrings
+            const earringWidth = Math.abs(rightEarX - leftEarX) + eyeDistance * 0.4; // Include earring size
+            const earringHeight = eyeDistance * 0.6;
             const earringCenterX = (leftEarX + rightEarX) / 2;
             const earringCenterY = (leftEarY + rightEarY) / 2;
-            
-            const earringSize = eyeDistance * 0.6;
-            const earringWidth = earringSize * 2;
-            const earringHeight = earringSize * 0.8;
             
             earringsOverlay.style.left = `${earringCenterX - earringWidth/2}px`;
             earringsOverlay.style.top = `${earringCenterY - earringHeight/2}px`;
             earringsOverlay.style.width = `${earringWidth}px`;
             earringsOverlay.style.height = `${earringHeight}px`;
             earringsOverlay.style.transform = 'rotate(0deg)';
+            
+            console.log(`💎 Earrings: positioned at ears - Left(${leftEarX.toFixed(0)}, ${leftEarY.toFixed(0)}), Right(${rightEarX.toFixed(0)}, ${rightEarY.toFixed(0)})`);
           }
         }
         else if (activeOverlay === 'Necklace') {
-          // NECKLACE: Fix positioning to be at neck level
           const ls = latestPose[11]; // left shoulder
           const rs = latestPose[12]; // right shoulder
           const nose = latestPose[0]; // nose for neck reference
@@ -779,18 +785,15 @@
             const shoulderCenterY = (leftShoulderY + rightShoulderY) / 2;
             const shoulderWidth = Math.abs(rightShoulderX - leftShoulderX);
             
-            // Position necklace between nose and shoulders (neck area)
-            const neckY = noseY + (shoulderCenterY - noseY) * 0.8; // 80% down from nose to shoulders
-            const necklaceWidth = shoulderWidth * 1.2; // Smaller than shirt
-            const necklaceHeight = shoulderWidth * 0.2; // Very thin
+            const neckY = noseY + (shoulderCenterY - noseY) * 0.8;
+            const necklaceWidth = shoulderWidth * 1.2;
+            const necklaceHeight = shoulderWidth * 0.2;
             
             necklaceOverlay.style.left = `${shoulderCenterX - necklaceWidth/2}px`;
             necklaceOverlay.style.top = `${neckY - necklaceHeight/2}px`;
             necklaceOverlay.style.width = `${necklaceWidth}px`;
             necklaceOverlay.style.height = `${necklaceHeight}px`;
             necklaceOverlay.style.transform = 'rotate(0deg)';
-            
-            console.log(`📿 Necklace: Fixed positioning at neck level Y=${neckY.toFixed(0)}`);
           }
         }
         else if (activeOverlay === 'Ring') {
