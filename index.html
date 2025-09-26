@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>emium AR Try-On Experience</title>
+  <title>ChechIT – Premium AR Try-On Experience</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     
@@ -539,7 +539,7 @@
 
   <section>
     <h2><span class="emoji">🖼</span>Upload Fashion Items</h2>
-    <p>Upload high-quality items one at a time for the most realistic virtual try-on experience.</p>
+    <p>Upload high-quality items of any size for the most realistic virtual try-on experience.</p>
     <div class="upload-section">
       <div class="upload-controls">
         <div class="upload-wrapper">
@@ -615,7 +615,7 @@
     const shirtOverlay = document.getElementById('shirtOverlay');
     const watchOverlay = document.getElementById('watchOverlay');
     const gogglesOverlay = document.getElementById('gogglesOverlay');
-    const necklaceOverlay = document.getElementById('necklaceOverlay'); // NEW
+    const necklaceOverlay = document.getElementById('necklaceOverlay');
     const previewImg = document.getElementById('previewImg');
     const placeholder = document.getElementById('placeholder');
     const rotator = document.getElementById('rotator');
@@ -695,7 +695,7 @@
       lastFrameTime = currentTime;
     }
 
-    // Enhanced upload handling (preserving original functionality)
+    // Enhanced upload handling (FILE SIZE LIMIT REMOVED)
     function setupInput(inputId, overlayImg, btnId, overlayType) {
       const input = document.getElementById(inputId);
       const btn = document.getElementById(btnId);
@@ -704,14 +704,9 @@
         const file = e.target.files[0];
         if (!file) return;
         
-        // File validation
+        // File validation - ONLY CHECK FILE TYPE (SIZE CHECK REMOVED)
         if (!file.type.startsWith('image/')) {
           showNotification('Please select an image file', 'error');
-          return;
-        }
-        
-        if (file.size > 5 * 1024 * 1024) { // 5MB limit
-          showNotification('File size must be less than 5MB', 'error');
           return;
         }
         
@@ -764,7 +759,7 @@
     setupInput('uploadShirt', shirtOverlay, 'shirtBtn', 'Shirt');
     setupInput('uploadWatch', watchOverlay, 'watchBtn', 'Watch');
     setupInput('uploadGoggles', gogglesOverlay, 'gogglesBtn', 'Goggles');
-    setupInput('uploadNecklace', necklaceOverlay, 'necklaceBtn', 'Necklace'); // NEW
+    setupInput('uploadNecklace', necklaceOverlay, 'necklaceBtn', 'Necklace');
 
     // Control buttons
     resetBtn.addEventListener('click', () => {
@@ -843,7 +838,7 @@
       height: 480
     }).start();
 
-    // Enhanced updateOverlays with performance optimization and NEW necklace support
+    // Enhanced updateOverlays with performance optimization and necklace support
     function updateOverlays() {
       frameCount++;
       updatePerformanceStats();
@@ -943,7 +938,7 @@
           gogglesOverlay.style.transform = 'rotate(0deg)';
         }
       }
-      // NEW NECKLACE LOGIC
+      // NECKLACE LOGIC
       else if (activeOverlay === 'Necklace') {
         const ls = latestPose[11]; // left shoulder
         const rs = latestPose[12]; // right shoulder
@@ -989,7 +984,7 @@
 
     updateOverlays();
     
-    console.log('✅ Enhanced AR Try-On initialized with performance monitoring!');
+    console.log('✅ Enhanced AR Try-On initialized - NO FILE SIZE LIMITS!');
   </script>
 </body>
 </html>
