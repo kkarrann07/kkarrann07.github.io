@@ -2,127 +2,541 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ChechIT – AR Try-On</title>
+  <title>ChechIT – Premium AR Try-On Experience</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { 
-      font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; 
-      background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
-      color:#333; min-height:100vh;
+      font-family:'Inter', 'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333; 
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
     }
+    
+    /* Animated background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: 
+        radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+      z-index: -1;
+      animation: float 6s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-20px); }
+    }
+    
     header { 
-      background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);
-      color:#fff; padding:2rem; text-align:center; font-size:2rem; font-weight:600;
-      box-shadow:0 4px 20px rgba(0,0,0,0.3);
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+      color: #fff; 
+      padding: 3rem 2rem; 
+      text-align: center; 
+      font-size: 2.5rem; 
+      font-weight: 700;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
     }
+    
+    header::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      right: -2px;
+      bottom: -2px;
+      background: linear-gradient(45deg, #667eea, #764ba2, #667eea);
+      z-index: -1;
+      animation: glow 2s linear infinite;
+    }
+    
+    @keyframes glow {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 0.8; }
+    }
+    
+    .header-subtitle {
+      font-size: 1.1rem;
+      font-weight: 300;
+      opacity: 0.9;
+      margin-top: 0.8rem;
+      letter-spacing: 1px;
+    }
+    
     section { 
-      max-width:1000px; margin:2rem auto; 
-      background:rgba(255,255,255,0.95); border-radius:20px;
-      box-shadow:0 10px 40px rgba(0,0,0,0.1); padding:2.5rem;
-      backdrop-filter:blur(10px);
+      max-width: 1200px; 
+      margin: 3rem auto; 
+      background: rgba(255,255,255,0.98);
+      border-radius: 30px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+      padding: 3.5rem;
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.3);
+      position: relative;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
+    
+    section:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 30px 80px rgba(0,0,0,0.15);
+    }
+    
     h2 { 
-      font-size:1.8rem; color:#2c3e50; margin-bottom:1rem; 
-      text-align:center; position:relative;
+      font-size: 2.2rem; 
+      background: linear-gradient(135deg, #2c3e50, #3498db);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 2rem; 
+      text-align: center; 
+      position: relative;
+      font-weight: 700;
+      letter-spacing: -0.5px;
     }
+    
     h2::after { 
-      content:''; position:absolute; bottom:-10px; left:50%; 
-      transform:translateX(-50%); width:60px; height:3px; 
-      background:linear-gradient(135deg,#667eea,#764ba2); border-radius:2px;
+      content: '';
+      position: absolute;
+      bottom: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 5px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border-radius: 3px;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
     }
-    p { text-align:center; color:#666; margin-bottom:1.5rem; font-size:1.1rem; }
+    
+    p { 
+      text-align: center; 
+      color: #6c7293; 
+      margin-bottom: 2.5rem; 
+      font-size: 1.2rem;
+      line-height: 1.7;
+      font-weight: 400;
+    }
+    
     iframe { 
-      width:100%; height:500px; border:none; border-radius:15px; 
-      box-shadow:0 8px 25px rgba(0,0,0,0.15); transition:transform 0.3s;
+      width: 100%; 
+      height: 550px; 
+      border: none; 
+      border-radius: 20px; 
+      box-shadow: 0 15px 50px rgba(0,0,0,0.15);
+      transition: all 0.4s ease;
+      border: 3px solid transparent;
+      background: linear-gradient(white, white) padding-box, 
+                  linear-gradient(135deg, #667eea, #764ba2) border-box;
     }
-    iframe:hover { transform:translateY(-5px); }
+    
+    iframe:hover { 
+      transform: translateY(-10px) scale(1.02);
+      box-shadow: 0 25px 70px rgba(0,0,0,0.2);
+    }
     
     .upload-section { 
-      display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start;
-    }
-    .upload-controls { display:flex; flex-direction:column; gap:1.5rem; }
-    .upload-wrapper { position:relative; overflow:hidden; }
-    .upload-wrapper input { 
-      position:absolute; opacity:0; width:100%; height:100%; cursor:pointer;
-    }
-    .upload-btn { 
-      display:flex; align-items:center; gap:10px; padding:15px 25px;
-      background:linear-gradient(135deg,#667eea,#764ba2); color:#fff;
-      border-radius:12px; cursor:pointer; transition:all 0.3s ease;
-      font-weight:500; box-shadow:0 4px 15px rgba(102,126,234,0.4);
-      user-select:none;
-    }
-    .upload-btn:hover { 
-      transform:translateY(-2px); 
-      box-shadow:0 6px 20px rgba(102,126,234,0.6);
-    }
-    .upload-btn.active { 
-      background:linear-gradient(135deg,#4CAF50,#45a049);
-      box-shadow:0 4px 15px rgba(76,175,80,0.4);
+      display: grid; 
+      grid-template-columns: 2fr 1fr; 
+      gap: 4rem; 
+      align-items: start;
     }
     
-    .preview-section { perspective:800px; }
+    .upload-controls { 
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem;
+    }
+    
+    .upload-wrapper { 
+      position: relative; 
+      overflow: hidden;
+      border-radius: 20px;
+      transition: all 0.3s ease;
+      group: hover;
+    }
+    
+    .upload-wrapper:hover {
+      transform: translateY(-5px) scale(1.05);
+    }
+    
+    .upload-wrapper input { 
+      position: absolute; 
+      opacity: 0; 
+      width: 100%; 
+      height: 100%; 
+      cursor: pointer;
+    }
+    
+    .upload-btn { 
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+      gap: 15px; 
+      padding: 25px 30px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border-radius: 20px; 
+      cursor: pointer; 
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      font-weight: 600; 
+      font-size: 1rem;
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+      user-select: none;
+      position: relative;
+      overflow: hidden;
+      border: 2px solid transparent;
+    }
+    
+    .upload-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      transition: all 0.6s ease;
+    }
+    
+    .upload-btn:hover::before {
+      left: 100%;
+    }
+    
+    .upload-btn:hover { 
+      transform: translateY(-3px);
+      box-shadow: 0 20px 50px rgba(102, 126, 234, 0.6);
+      border-color: rgba(255,255,255,0.3);
+    }
+    
+    .upload-btn.active { 
+      background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+      box-shadow: 0 10px 30px rgba(76, 175, 80, 0.5);
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    
+    .upload-btn.loading {
+      background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+      pointer-events: none;
+    }
+    
+    .emoji { 
+      font-size: 1.5rem; 
+      margin-right: 8px;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    }
+    
+    .preview-section { 
+      perspective: 1200px;
+    }
+    
+    .preview-header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      font-weight: 700;
+      font-size: 1.3rem;
+      color: #2c3e50;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
     .rotator { 
-      width:320px; height:400px; border:2px solid #ddd; 
-      border-radius:15px; background:#fafafa; 
-      display:flex; align-items:center; justify-content:center; 
-      cursor:grab; transform-style:preserve-3d; margin:0 auto;
+      width: 100%;
+      max-width: 380px;
+      height: 450px; 
+      border: 4px solid #e1e8ff;
+      border-radius: 25px; 
+      background: linear-gradient(135deg, #f8fbff 0%, #f0f7ff 100%);
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      cursor: grab; 
+      transform-style: preserve-3d; 
+      margin: 0 auto;
+      transition: all 0.4s ease;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+      position: relative;
+      overflow: hidden;
     }
+    
+    .rotator::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: conic-gradient(from 0deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+      animation: rotate 8s linear infinite;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .rotator:hover::before {
+      opacity: 1;
+    }
+    
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    .rotator:hover {
+      border-color: #667eea;
+      box-shadow: 0 25px 60px rgba(102, 126, 234, 0.3);
+      transform: translateY(-5px);
+    }
+    
+    .rotator:active { 
+      cursor: grabbing;
+      transform: scale(0.95);
+    }
+    
     .rotator img { 
-      max-width:90%; max-height:90%; pointer-events:none; 
-      user-select:none; backface-visibility:hidden; transition:transform 0.1s;
+      max-width: 80%; 
+      max-height: 80%; 
+      pointer-events: none; 
+      user-select: none; 
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      transition: all 0.2s ease-out;
+      z-index: 2;
+      position: relative;
     }
-    .rotator:active { cursor:grabbing; }
+    
     .rotator-placeholder { 
-      color:#999; text-align:center; font-size:1rem;
+      color: #8b93a7; 
+      text-align: center; 
+      font-size: 1.1rem;
+      line-height: 1.8;
+      z-index: 2;
+      position: relative;
     }
     
     .ar-container { 
-      position:relative; width:640px; height:480px; margin:2rem auto; 
-      border-radius:20px; overflow:hidden; 
-      box-shadow:0 10px 30px rgba(0,0,0,0.3); background:#000;
+      position: relative; 
+      width: 100%;
+      max-width: 800px;
+      aspect-ratio: 4/3;
+      margin: 3rem auto; 
+      border-radius: 30px; 
+      overflow: hidden; 
+      box-shadow: 0 25px 80px rgba(0,0,0,0.3);
+      background: #000;
+      border: 6px solid #fff;
+      transition: all 0.4s ease;
     }
-    video { 
-      position:absolute; top:0; left:0; width:100%; height:100%; 
-      transform:scaleX(-1); object-fit:cover;
-    }
-    .overlay { 
-      position:absolute; pointer-events:none; 
-      transform-origin:center center; will-change:transform;
-    }
-    .status-bar { 
-      position:absolute; top:15px; right:15px; 
-      background:rgba(0,0,0,0.7); color:#fff; 
-      padding:8px 15px; border-radius:25px; font-size:0.9rem;
-      backdrop-filter:blur(5px);
-    }
-    .debug-info { 
-      position:absolute; top:60px; right:15px; 
-      background:rgba(0,0,0,0.7); color:#fff; 
-      padding:8px 12px; border-radius:15px; font-size:0.8rem;
-      font-family:monospace; max-width:200px;
-    }
-    .emoji { font-size:1.2rem; margin-right:8px; }
     
-    @media (max-width:768px) {
-      .upload-section { grid-template-columns:1fr; }
-      .ar-container { width:90vw; height:calc(90vw * 0.75); max-width:640px; }
-      section { margin:1rem; padding:1.5rem; }
+    .ar-container:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 35px 100px rgba(0,0,0,0.4);
+    }
+    
+    video { 
+      position: absolute; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+      transform: scaleX(-1); 
+      object-fit: cover;
+    }
+    
+    .overlay { 
+      position: absolute; 
+      pointer-events: none; 
+      transform-origin: center center; 
+      will-change: transform;
+      transition: opacity 0.3s ease;
+    }
+    
+    .status-bar { 
+      position: absolute; 
+      top: 25px; 
+      right: 25px; 
+      background: rgba(0,0,0,0.85);
+      color: #fff; 
+      padding: 12px 20px; 
+      border-radius: 30px; 
+      font-size: 1rem;
+      font-weight: 600;
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+      z-index: 100;
+    }
+    
+    .debug-info { 
+      position: absolute; 
+      top: 80px; 
+      right: 25px; 
+      background: rgba(0,0,0,0.85);
+      color: #fff; 
+      padding: 15px 18px; 
+      border-radius: 15px; 
+      font-size: 0.85rem;
+      font-family: 'Courier New', monospace; 
+      max-width: 220px;
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+      z-index: 100;
+    }
+    
+    /* Enhanced jewelry categories */
+    .jewelry-section {
+      margin-top: 2rem;
+      padding: 2rem;
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      border-radius: 20px;
+      color: white;
+      text-align: center;
+    }
+    
+    .jewelry-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .jewelry-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1.5rem;
+    }
+    
+    .jewelry-btn {
+      background: rgba(255,255,255,0.2);
+      border: 2px solid rgba(255,255,255,0.3);
+      color: white;
+      backdrop-filter: blur(10px);
+    }
+    
+    .jewelry-btn:hover {
+      background: rgba(255,255,255,0.3);
+      border-color: rgba(255,255,255,0.5);
+    }
+    
+    .jewelry-btn.active {
+      background: rgba(255,255,255,0.4);
+      border-color: rgba(255,255,255,0.8);
+      box-shadow: 0 10px 30px rgba(255,255,255,0.2);
+    }
+    
+    /* Feature highlights */
+    .features-section {
+      margin-top: 3rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+    }
+    
+    .feature-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 2.5rem 2rem;
+      border-radius: 20px;
+      text-align: center;
+      box-shadow: 0 15px 40px rgba(102, 126, 234, 0.3);
+      transition: all 0.3s ease;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .feature-card:hover {
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 25px 60px rgba(102, 126, 234, 0.4);
+    }
+    
+    .feature-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.9;
+    }
+    
+    .feature-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 0.8rem;
+    }
+    
+    .feature-desc {
+      font-size: 0.95rem;
+      opacity: 0.9;
+      line-height: 1.5;
+      margin: 0;
+    }
+    
+    @media (max-width: 1024px) {
+      .upload-section { 
+        grid-template-columns: 1fr;
+        gap: 2rem;
+      }
+      
+      .rotator {
+        max-width: 320px;
+        height: 380px;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      header {
+        padding: 2rem 1rem;
+        font-size: 2rem;
+      }
+      
+      section { 
+        margin: 1.5rem; 
+        padding: 2rem;
+      }
+      
+      .upload-controls {
+        grid-template-columns: 1fr;
+      }
+      
+      .ar-container {
+        border-width: 3px;
+      }
+      
+      .jewelry-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .features-section {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
-  <header><span class="emoji">👗</span>ChechIT – AR Try-On</header>
+  <header>
+    <div>
+      <span class="emoji">✨</span>ChechIT – Premium AR Try-On
+      <div class="header-subtitle">Experience the future of virtual fashion & jewelry</div>
+    </div>
+  </header>
 
   <section>
-    <h2><span class="emoji">🔍</span>AI Fashion Search</h2>
-    <p>Discover garments using advanced AI embeddings technology.</p>
+    <h2><span class="emoji">🔍</span>AI Fashion Discovery</h2>
+    <p>Discover garments and accessories using our advanced AI-powered search technology with smart embeddings.</p>
     <iframe src="https://kkarrann07-Fashion.hf.space"></iframe>
   </section>
 
   <section>
-    <h2><span class="emoji">🖼</span>Upload Overlays</h2>
-    <p>Upload one item at a time for virtual try-on experience.</p>
+    <h2><span class="emoji">🎨</span>Upload Your Items</h2>
+    <p>Upload high-quality images for the most realistic virtual try-on experience. One item at a time for optimal performance.</p>
+    
     <div class="upload-section">
       <div class="upload-controls">
         <div class="upload-wrapper">
@@ -143,29 +557,91 @@
             <span class="emoji">🕶</span>Upload Goggles
           </div>
         </div>
+        
+        <!-- Jewelry Section -->
+        <div class="jewelry-section">
+          <div class="jewelry-title">💎 Jewelry Collection</div>
+          <div class="jewelry-grid">
+            <div class="upload-wrapper">
+              <input id="uploadEarrings" type="file" accept="image/png" />
+              <div class="upload-btn jewelry-btn" id="earringsBtn">
+                <span class="emoji">💎</span>Earrings
+              </div>
+            </div>
+            <div class="upload-wrapper">
+              <input id="uploadNecklace" type="file" accept="image/png" />
+              <div class="upload-btn jewelry-btn" id="necklaceBtn">
+                <span class="emoji">📿</span>Necklace
+              </div>
+            </div>
+            <div class="upload-wrapper">
+              <input id="uploadRing" type="file" accept="image/png" />
+              <div class="upload-btn jewelry-btn" id="ringBtn">
+                <span class="emoji">💍</span>Ring
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+      
       <div class="preview-section">
-        <p><span class="emoji">🖼</span>3D Preview:</p>
+        <div class="preview-header">
+          <span class="emoji">🎭</span>Interactive 3D Preview
+        </div>
         <div class="rotator" id="rotator">
           <img id="previewImg" src="" style="display:none" />
           <div class="rotator-placeholder" id="placeholder">
-            <span class="emoji">📱</span><br>
-            3D Rotator<br>
-            <small>Upload an item to preview</small>
+            <span class="emoji" style="font-size: 4rem; display: block; margin-bottom: 1rem;">📱</span>
+            <strong style="font-size: 1.2rem;">3D Rotator</strong><br><br>
+            <span style="opacity: 0.8;">Upload any item to preview<br>Click & drag to rotate in 3D</span>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <div class="ar-container">
-    <video id="video" autoplay playsinline muted></video>
-    <img id="shirtOverlay" class="overlay" style="display:none" />
-    <img id="watchOverlay" class="overlay" style="display:none" />
-    <img id="gogglesOverlay" class="overlay" style="display:none" />
-    <div class="status-bar" id="statusBar">Initializing...</div>
-    <div class="debug-info" id="debugInfo">Debug: Ready</div>
-  </div>
+  <section style="text-align: center;">
+    <h2><span class="emoji">🎥</span>AR Virtual Experience</h2>
+    <p>Real-time augmented reality with advanced pose detection and natural overlay positioning for clothing and jewelry.</p>
+    
+    <div class="ar-container">
+      <video id="video" autoplay playsinline muted></video>
+      <img id="shirtOverlay" class="overlay" style="display:none" />
+      <img id="watchOverlay" class="overlay" style="display:none" />
+      <img id="gogglesOverlay" class="overlay" style="display:none" />
+      <img id="earringsOverlay" class="overlay" style="display:none" />
+      <img id="necklaceOverlay" class="overlay" style="display:none" />
+      <img id="ringOverlay" class="overlay" style="display:none" />
+      <div class="status-bar" id="statusBar">🚀 Initializing AR System...</div>
+      <div class="debug-info" id="debugInfo">
+        <strong>System Status</strong><br>
+        Ready for magic ✨
+      </div>
+    </div>
+    
+    <div class="features-section">
+      <div class="feature-card">
+        <div class="feature-icon">🎯</div>
+        <div class="feature-title">Precise Tracking</div>
+        <div class="feature-desc">Advanced AI pose detection with real-time landmark tracking</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💎</div>
+        <div class="feature-title">Jewelry Support</div>
+        <div class="feature-desc">Try on earrings, necklaces, and rings with natural positioning</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📱</div>
+        <div class="feature-title">Mobile Ready</div>
+        <div class="feature-desc">Optimized experience across all devices and screen sizes</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <div class="feature-title">High Performance</div>
+        <div class="feature-desc">Smooth 60fps rendering with optimized algorithms</div>
+      </div>
+    </div>
+  </section>
 
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
@@ -176,6 +652,9 @@
     const shirtOverlay = document.getElementById('shirtOverlay');
     const watchOverlay = document.getElementById('watchOverlay');
     const gogglesOverlay = document.getElementById('gogglesOverlay');
+    const earringsOverlay = document.getElementById('earringsOverlay');
+    const necklaceOverlay = document.getElementById('necklaceOverlay');
+    const ringOverlay = document.getElementById('ringOverlay');
     const previewImg = document.getElementById('previewImg');
     const placeholder = document.getElementById('placeholder');
     const rotator = document.getElementById('rotator');
@@ -218,17 +697,20 @@
         const file = e.target.files[0];
         if (!file) return;
         
-        // Reset all
-        [shirtOverlay, watchOverlay, gogglesOverlay].forEach(o => {
+        // Reset all overlays
+        [shirtOverlay, watchOverlay, gogglesOverlay, earringsOverlay, necklaceOverlay, ringOverlay].forEach(o => {
           o.style.display = 'none';
           o.src = '';
         });
+        
+        // Reset all buttons
         document.querySelectorAll('.upload-btn').forEach(b => {
           b.classList.remove('active');
           b.innerHTML = b.innerHTML.replace('✅ Active', '').replace('Active', 'Upload');
         });
         
         btn.innerHTML = '<span class="emoji">⏳</span>Loading...';
+        btn.classList.add('loading');
         
         const reader = new FileReader();
         reader.onload = ev => {
@@ -243,25 +725,32 @@
           previewImg.style.transform = 'rotateY(0deg)';
           
           // Mark active
+          btn.classList.remove('loading');
           btn.classList.add('active');
           btn.innerHTML = `<span class="emoji">✅</span>Active ${overlayType}`;
           activeOverlay = overlayType;
           
-          statusBar.textContent = `${overlayType} loaded`;
+          statusBar.innerHTML = `✨ ${overlayType} loaded successfully!`;
+          debugInfo.innerHTML = `<strong>System Status</strong><br>${overlayType} Active 🎯<br>Tracking in progress...`;
         };
         reader.readAsDataURL(file);
       });
     }
 
+    // Setup all inputs
     setupInput('uploadShirt', shirtOverlay, 'shirtBtn', 'Shirt');
     setupInput('uploadWatch', watchOverlay, 'watchBtn', 'Watch');
     setupInput('uploadGoggles', gogglesOverlay, 'gogglesBtn', 'Goggles');
+    setupInput('uploadEarrings', earringsOverlay, 'earringsBtn', 'Earrings');
+    setupInput('uploadNecklace', necklaceOverlay, 'necklaceBtn', 'Necklace');
+    setupInput('uploadRing', ringOverlay, 'ringBtn', 'Ring');
 
     // Camera
     navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
       .then(stream => {
         video.srcObject = stream;
-        statusBar.textContent = 'Camera ready';
+        statusBar.innerHTML = '📹 Camera ready - Upload an item to begin!';
+        debugInfo.innerHTML = '<strong>System Status</strong><br>Camera: Ready ✅<br>Awaiting upload...';
       });
 
     // MediaPipe Pose
@@ -303,40 +792,25 @@
         const rs = latestPose[12]; // right shoulder
         
         if (ls && rs && ls.visibility > 0.5 && rs.visibility > 0.5) {
-          // Simple shoulder-based positioning
           const leftX = (1 - ls.x) * w;
           const leftY = ls.y * h;
           const rightX = (1 - rs.x) * w;
           const rightY = rs.y * h;
           
-          // Center between shoulders
           const centerX = (leftX + rightX) / 2;
           const centerY = (leftY + rightY) / 2;
           
-          // Width based on shoulder distance
           const shoulderDistance = Math.abs(rightX - leftX);
           const shirtWidth = shoulderDistance * 2.0;
           const shirtHeight = shirtWidth * 1.2;
           
-          // Rotation based on shoulder line
           const angle = Math.atan2(rightY - leftY, rightX - leftX) * 180 / Math.PI;
           
-          // Position shirt AT shoulder level, not below
           shirtOverlay.style.left = `${centerX - shirtWidth/2}px`;
-          shirtOverlay.style.top = `${centerY - shirtHeight/2}px`; // CENTER at shoulder level
+          shirtOverlay.style.top = `${centerY - shirtHeight/2}px`;
           shirtOverlay.style.width = `${shirtWidth}px`;
           shirtOverlay.style.height = `${shirtHeight}px`;
           shirtOverlay.style.transform = `rotate(${angle}deg)`;
-          
-          // Debug
-          if (frameCount % 30 === 0) {
-            debugInfo.innerHTML = `
-              Shirt Active<br>
-              Center: ${centerX.toFixed(0)},${centerY.toFixed(0)}<br>
-              Size: ${shirtWidth.toFixed(0)}×${shirtHeight.toFixed(0)}<br>
-              Angle: ${angle.toFixed(1)}°
-            `;
-          }
         }
       } 
       else if (activeOverlay === 'Watch') {
@@ -372,6 +846,67 @@
           gogglesOverlay.style.width = `${GW}px`;
           gogglesOverlay.style.height = `${GH}px`;
           gogglesOverlay.style.transform = 'rotate(0deg)';
+        }
+      }
+      else if (activeOverlay === 'Earrings') {
+        const le = latestPose[2], re = latestPose[5]; // eye landmarks for ear approximation
+        if (le && re && le.visibility > 0.3 && re.visibility > 0.3) {
+          const leftX = (1 - le.x) * w;
+          const leftY = le.y * h;
+          const rightX = (1 - re.x) * w;
+          const rightY = re.y * h;
+          
+          const eyeDistance = Math.abs(rightX - leftX);
+          const earringSize = eyeDistance * 0.8;
+          
+          // Position earrings at approximate ear locations
+          const centerX = (leftX + rightX) / 2;
+          const centerY = (leftY + rightY) / 2 + eyeDistance * 0.3;
+          
+          earringsOverlay.style.left = `${centerX - earringSize}px`;
+          earringsOverlay.style.top = `${centerY - earringSize/2}px`;
+          earringsOverlay.style.width = `${earringSize * 2}px`;
+          earringsOverlay.style.height = `${earringSize}px`;
+          earringsOverlay.style.transform = 'rotate(0deg)';
+        }
+      }
+      else if (activeOverlay === 'Necklace') {
+        const ls = latestPose[11], rs = latestPose[12]; // shoulders for necklace positioning
+        if (ls && rs && ls.visibility > 0.5 && rs.visibility > 0.5) {
+          const leftX = (1 - ls.x) * w;
+          const leftY = ls.y * h;
+          const rightX = (1 - rs.x) * w;
+          const rightY = rs.y * h;
+          
+          const centerX = (leftX + rightX) / 2;
+          const shoulderDistance = Math.abs(rightX - leftX);
+          const necklaceY = (leftY + rightY) / 2 + shoulderDistance * 0.4; // Below shoulders
+          const necklaceW = shoulderDistance * 1.8;
+          const necklaceH = necklaceW * 0.3;
+          
+          necklaceOverlay.style.left = `${centerX - necklaceW/2}px`;
+          necklaceOverlay.style.top = `${necklaceY - necklaceH/2}px`;
+          necklaceOverlay.style.width = `${necklaceW}px`;
+          necklaceOverlay.style.height = `${necklaceH}px`;
+          necklaceOverlay.style.transform = 'rotate(0deg)';
+        }
+      }
+      else if (activeOverlay === 'Ring') {
+        const rw = latestPose[16]; // right wrist as approximation for hand
+        if (rw && rw.visibility > 0.4) {
+          const x = (1 - rw.x) * w;
+          const y = rw.y * h;
+          const ringSize = w * 0.06; // Smaller than watch
+          
+          // Offset slightly to approximate ring finger position
+          const offsetX = x + ringSize;
+          const offsetY = y + ringSize * 0.5;
+          
+          ringOverlay.style.left = `${offsetX - ringSize/2}px`;
+          ringOverlay.style.top = `${offsetY - ringSize/2}px`;
+          ringOverlay.style.width = `${ringSize}px`;
+          ringOverlay.style.height = `${ringSize}px`;
+          ringOverlay.style.transform = 'rotate(0deg)';
         }
       }
 
